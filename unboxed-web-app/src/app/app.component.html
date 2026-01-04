@@ -1,10 +1,14 @@
-<div class="min-h-screen bg-gray-50 font-sans text-gray-900">
+<div class="main-page min-h-screen bg-gray-50 font-sans text-gray-900">
   <!-- Top Navigation Bar -->
-  <app-navbar></app-navbar>
-
+  <div class="navbar">
+    <app-navbar></app-navbar>
+  </div>
+  
   <!-- Routed Content Area -->
-  <router-outlet></router-outlet>
-
+   <div class="content">
+      <router-outlet></router-outlet>
+   </div>
+  
   <!-- Trade Modal -->
   <app-trade-modal 
     *ngIf="selectedTradeItem" 
