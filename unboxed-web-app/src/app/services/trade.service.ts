@@ -1,6 +1,15 @@
 import { Injectable } from '@angular/core';
-import { Observable, of, Subject } from 'rxjs';
+import { Observable, of, Subject, BehaviorSubject, combineLatest } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { TradeItem } from '../models/trade-item.model';
+
+export interface TradeFilters {
+  search?: string;
+  category?: string;
+  series?: string[];
+  rarity?: string[];
+  maxValue?: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -69,7 +78,7 @@ export class TradeService {
       series: 'Crying Parade',
       rarity: 'Common',
       referenceValue: 16,
-      imageUrl: 'images/097c128781f8e1f9dbc63229294df799.webp',
+      imageUrl: 'images/crybaby_crying_parade.avif',
       isFeatured: false,
       ownerId: 'me',
       status: 'available'
@@ -80,25 +89,65 @@ export class TradeService {
       series: 'Forest Party',
       rarity: 'Common',
       referenceValue: 14,
-      imageUrl: 'https://popmart.com.au/cdn/shop/files/1_0004_Layer-5.jpg?v=1715326661&width=600',
+      imageUrl: 'images/pucky_forest.webp',
       isFeatured: false,
       ownerId: 'me',
       status: 'available'
     }
   ];
 
+  private itemsSubject = new BehaviorSubject<TradeItem[]>(this.mockItems);
+  private filtersSubject = new BehaviorSubject<TradeFilters>({
+    search: '',
+    category: 'All',
+    series: [],
+    rarity: [],
+    maxValue: 500
+  });
+
+  filteredItems$ = combineLatest([this.itemsSubject, this.filtersSubject]).pipe(
+    map(([items, filters]) => {
+      return items.filter(item => {
+        const matchesSearch = !filters.search || 
+          item.name.toLowerCase().includes(filters.search.toLowerCase()) ||
+          item.series.toLowerCase().includes(filters.search.toLowerCase());
+        
+        const matchesSeries = !filters.series?.length || filters.series.includes(item.series);
+        const matchesRarity = !filters.rarity?.length || filters.rarity.includes(item.rarity);
+        const matchesValue = !filters.maxValue || item.referenceValue <= filters.maxValue;
+        
+        // Mocking category logic
+        let matchesCategory = true;
+        if (filters.category === 'Series') matchesCategory = !!item.series;
+        if (filters.category === 'Characters') matchesCategory = !!item.name;
+        if (filters.category === 'My Collection') matchesCategory = item.ownerId === 'me';
+
+        return matchesSearch && matchesSeries && matchesRarity && matchesValue && matchesCategory;
+      });
+    })
+  );
+
   constructor() { }
 
   getTradeItems(): Observable<TradeItem[]> {
-    return of(this.mockItems);
+    return this.filteredItems$;
   }
 
   getFeaturedItems(): Observable<TradeItem[]> {
-    return of(this.mockItems.filter(item => item.isFeatured));
+    return this.itemsSubject.pipe(
+      map(items => items.filter(item => item.isFeatured))
+    );
   }
 
   getMyCollection(): Observable<TradeItem[]> {
     return of(this.myCollection);
+  }
+
+  updateFilters(newFilters: Partial<TradeFilters>) {
+    this.filtersSubject.next({
+      ...this.filtersSubject.value,
+      ...newFilters
+    });
   }
 
   proposeTrade(item: TradeItem) {

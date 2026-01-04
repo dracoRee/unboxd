@@ -6,15 +6,15 @@
     <h3 class="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wider">Series</h3>
     <div class="space-y-3">
       <label class="flex items-center gap-3 cursor-pointer group">
-        <input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500">
+        <input type="checkbox" (change)="onSeriesChange('Ancient Castle', $event)" class="w-4 h-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500">
         <span class="text-sm text-gray-600 group-hover:text-gray-900">Ancient Castle</span>
       </label>
       <label class="flex items-center gap-3 cursor-pointer group">
-        <input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500">
+        <input type="checkbox" (change)="onSeriesChange('Aquarium', $event)" class="w-4 h-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500">
         <span class="text-sm text-gray-600 group-hover:text-gray-900">Aquarium Series</span>
       </label>
       <label class="flex items-center gap-3 cursor-pointer group">
-        <input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500">
+        <input type="checkbox" (change)="onSeriesChange('The Monsters Art', $event)" class="w-4 h-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500">
         <span class="text-sm text-gray-600 group-hover:text-gray-900">The Monsters Art</span>
       </label>
     </div>
@@ -24,17 +24,39 @@
   <div class="mb-8">
     <h3 class="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wider">Rarity</h3>
     <div class="flex flex-wrap gap-2">
-      <button class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-accent-100 hover:text-accent-700 transition-colors">Common</button>
-      <button class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-accent-100 hover:text-accent-700 transition-colors">Rare</button>
-      <button class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-accent-100 hover:text-accent-700 transition-colors">Secret</button>
+      <button 
+        (click)="toggleRarity('Common')"
+        [class.bg-accent-600]="selectedRarities.includes('Common')"
+        [class.text-white]="selectedRarities.includes('Common')"
+        class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-accent-100 hover:text-accent-700 transition-colors"
+      >Common</button>
+      <button 
+        (click)="toggleRarity('Rare')"
+        [class.bg-accent-600]="selectedRarities.includes('Rare')"
+        [class.text-white]="selectedRarities.includes('Rare')"
+        class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-accent-100 hover:text-accent-700 transition-colors"
+      >Rare</button>
+      <button 
+        (click)="toggleRarity('Secret')"
+        [class.bg-accent-600]="selectedRarities.includes('Secret')"
+        [class.text-white]="selectedRarities.includes('Secret')"
+        class="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 hover:bg-accent-100 hover:text-accent-700 transition-colors"
+      >Secret</button>
     </div>
   </div>
 
   <!-- Value Range -->
   <div class="mb-8">
-    <h3 class="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wider">Reference Value</h3>
+    <h3 class="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wider">Reference Value (Up to ${{maxValue}})</h3>
     <div class="px-2">
-      <input type="range" min="0" max="500" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-accent-600">
+      <input 
+        type="range" 
+        min="0" 
+        max="500" 
+        [(ngModel)]="maxValue"
+        (input)="onValueChange()"
+        class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-accent-600"
+      >
       <div class="flex justify-between mt-2 text-xs text-gray-500 font-medium">
         <span>$0</span>
         <span>$500+</span>

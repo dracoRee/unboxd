@@ -2,10 +2,6 @@ import { Component, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { NavbarComponent } from './components/navbar/navbar.component';
-import { CategoryTabsComponent } from './components/category-tabs/category-tabs.component';
-import { SidebarFiltersComponent } from './components/sidebar-filters/sidebar-filters.component';
-import { FeaturedTradeComponent } from './components/featured-trade/featured-trade.component';
-import { TradeGridComponent } from './components/trade-grid/trade-grid.component';
 import { TradeModalComponent } from './components/trade-modal/trade-modal.component';
 import { TradeItem } from './models/trade-item.model';
 import { TradeService } from './services/trade.service';
@@ -17,10 +13,6 @@ import { TradeService } from './services/trade.service';
     RouterOutlet,
     CommonModule,
     NavbarComponent,
-    CategoryTabsComponent,
-    SidebarFiltersComponent,
-    FeaturedTradeComponent,
-    TradeGridComponent,
     TradeModalComponent
   ],
   templateUrl: './app.component.html',

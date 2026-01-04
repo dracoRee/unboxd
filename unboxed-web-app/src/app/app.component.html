@@ -2,35 +2,8 @@
   <!-- Top Navigation Bar -->
   <app-navbar></app-navbar>
 
-  <!-- Main Content Area -->
-  <main class="container mx-auto px-4 py-6">
-    
-    <!-- Category Tabs -->
-    <div class="mb-6">
-      <app-category-tabs></app-category-tabs>
-    </div>
-
-    <div class="flex flex-col lg:flex-row gap-6">
-      
-      <!-- Sidebar Filters -->
-      <aside class="w-full lg:w-64 flex-shrink-0">
-        <app-sidebar-filters></app-sidebar-filters>
-      </aside>
-
-      <!-- Main Grid Area -->
-      <div class="flex-1">
-        
-        <!-- Featured Trade Card -->
-        <div class="mb-8">
-          <app-featured-trade></app-featured-trade>
-        </div>
-
-        <!-- Trade Item Grid -->
-        <app-trade-grid></app-trade-grid>
-        
-      </div>
-    </div>
-  </main>
+  <!-- Routed Content Area -->
+  <router-outlet></router-outlet>
 
   <!-- Trade Modal -->
   <app-trade-modal 
@@ -40,5 +13,3 @@
     (tradeSent)="handleTradeSent($event)"
   ></app-trade-modal>
 </div>
-
-<router-outlet />
