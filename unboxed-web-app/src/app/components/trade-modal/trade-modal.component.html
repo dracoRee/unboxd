@@ -1,0 +1,94 @@
+<div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
+  <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+    <!-- Header -->
+    <div class="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+      <div>
+        <h2 class="text-2xl font-black text-gray-900">Propose Trade</h2>
+        <p class="text-sm text-gray-500">Select items from your collection to offer</p>
+      </div>
+      <button (click)="close.emit()" class="p-2 hover:bg-gray-200 rounded-full transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <!-- Target Item (What you want) -->
+        <div>
+          <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">You are requesting</h3>
+          <div class="flex items-center gap-4 p-4 rounded-2xl bg-accent-50 border border-accent-100">
+            <div class="w-16 h-16 bg-white rounded-xl p-2 border border-accent-200">
+              <img [src]="targetItem.imageUrl" [alt]="targetItem.name" class="w-full h-full object-contain">
+            </div>
+            <div>
+              <h4 class="font-bold text-gray-900">{{ targetItem.name }}</h4>
+              <p class="text-xs text-gray-500">{{ targetItem.series }}</p>
+              <span class="text-sm font-black text-accent-600 mt-1 block">${{ targetItem.referenceValue }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Value Comparison -->
+        <div class="flex flex-col justify-center items-center p-6 rounded-2xl bg-gray-50 border border-gray-100">
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Trade Value Status</span>
+          <div 
+            [class.text-green-600]="valueComparison === 'Fair'"
+            [class.text-yellow-600]="valueComparison === 'Over'"
+            [class.text-red-600]="valueComparison === 'Under'"
+            class="text-3xl font-black mb-1"
+          >
+            {{ valueComparison }}
+          </div>
+          <p class="text-xs text-gray-500 text-center">
+            Your offer: <span class="font-bold text-gray-900">${{ totalOfferedValue }}</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- My Collection Selection -->
+      <div class="mt-8">
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Your Collection</h3>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-64 overflow-y-auto pr-2 no-scrollbar">
+          @for (item of myCollection; track item.id) {
+            <div 
+              (click)="toggleSelection(item.id)"
+              [class.ring-2]="selectedItems.has(item.id)"
+              [class.ring-accent-500]="selectedItems.has(item.id)"
+              [class.bg-accent-50]="selectedItems.has(item.id)"
+              class="relative cursor-pointer p-3 rounded-2xl border border-gray-200 hover:border-accent-300 transition-all group"
+            >
+              <div class="aspect-square bg-gray-50 rounded-xl p-2 mb-2 group-hover:bg-white transition-colors">
+                <img [src]="item.imageUrl" [alt]="item.name" class="w-full h-full object-contain">
+              </div>
+              <h4 class="text-xs font-bold text-gray-900 truncate">{{ item.name }}</h4>
+              <span class="text-[10px] font-black text-gray-500">${{ item.referenceValue }}</span>
+              
+              <!-- Selection Indicator -->
+              <div *ngIf="selectedItems.has(item.id)" class="absolute top-2 right-2 w-5 h-5 bg-accent-500 rounded-full flex items-center justify-center shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="px-8 py-6 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+      <button (click)="close.emit()" class="text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors">
+        Cancel
+      </button>
+      <button 
+        (click)="sendOffer()"
+        [disabled]="selectedItems.size === 0"
+        class="bg-gray-900 text-white disabled:bg-gray-300 disabled:cursor-not-allowed px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+      >
+        Send Trade Offer
+      </button>
+    </div>
+  </div>
+</div>

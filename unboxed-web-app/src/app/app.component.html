@@ -1,153 +1,44 @@
-<div class="market-container">
-  <!-- Header -->
-  <header class="market-header">
-    <div class="container">
-      <h1>{{ title }}</h1>
-      <p class="header-subtitle">Buy and sell items with the Community</p>
+<div class="min-h-screen bg-gray-50 font-sans text-gray-900">
+  <!-- Top Navigation Bar -->
+  <app-navbar></app-navbar>
+
+  <!-- Main Content Area -->
+  <main class="container mx-auto px-4 py-6">
+    
+    <!-- Category Tabs -->
+    <div class="mb-6">
+      <app-category-tabs></app-category-tabs>
     </div>
-  </header>
 
-  <!-- Main Content -->
-  <div class="container">
-    <div class="market-layout">
+    <div class="flex flex-col lg:flex-row gap-6">
       
-      <!-- Main Content Area -->
-      <main class="market-main">
-        
-        <!-- Tab Navigation -->
-        <nav class="tab-navigation">
-          @for (tab of tabs; track tab.id) {
-            <button 
-              class="tab-btn"
-              [class.active]="activeTab === tab.id"
-              (click)="setActiveTab(tab.id)">
-              {{ tab.label }}
-            </button>
-          }
-        </nav>
-
-        <!-- Item Listings -->
-        <div class="item-listings">
-          <div class="listings-header">
-            <h2>{{ activeTab === 'popular' ? 'Popular Items' : activeTab === 'recent' ? 'Recently Listed' : 'Your Items' }}</h2>
-            <span class="item-count">{{ filteredItems.length }} items</span>
-          </div>
-
-          <div class="items-container">
-            @if (filteredItems.length > 0) {
-              @for (item of filteredItems; track item.id) {
-                <div class="item-card">
-                  <div class="item-image">
-                    <img [src]="item.imageUrl" [alt]="item.name" loading="lazy">
-                  </div>
-                  <div class="item-info">
-                    <h3 class="item-name">{{ item.name }}</h3>
-                    <p class="item-game">{{ item.game }}</p>
-                    @if (item.rarity) {
-                      <span class="item-rarity" [attr.data-rarity]="item.rarity">{{ item.rarity }}</span>
-                    }
-                  </div>
-                  <div class="item-stats">
-                    <div class="stat">
-                      <span class="stat-label">Quantity</span>
-                      <span class="stat-value">{{ item.quantity }}</span>
-                    </div>
-                    <div class="stat">
-                      <span class="stat-label">Starting at</span>
-                      <span class="stat-value price">{{ formatPrice(item.price) }}</span>
-                    </div>
-                  </div>
-                  <button class="btn-view">View</button>
-                </div>
-              }
-            } @else {
-              <div class="no-results">
-                <p>No items found matching your search criteria.</p>
-              </div>
-            }
-          </div>
-
-          @if (filteredItems.length > 0) {
-            <div class="see-all">
-              <button class="btn btn-primary">See all items</button>
-            </div>
-          }
-        </div>
-
-      </main>
-
-      <!-- Sidebar -->
-      <aside class="market-sidebar">
-        
-        <!-- Search Section -->
-        <div class="sidebar-section">
-          <h3>Search</h3>
-          <input 
-            type="text" 
-            class="search-input" 
-            placeholder="Search items..."
-            [(ngModel)]="searchQuery">
-          
-          <button 
-            class="advanced-toggle"
-            (click)="toggleAdvancedOptions()">
-            {{ showAdvancedOptions ? 'Hide' : 'Show' }} advanced options
-          </button>
-
-          @if (showAdvancedOptions) {
-            <div class="advanced-options">
-              <label for="game-filter">Filter by Game</label>
-              <select 
-                id="game-filter"
-                [(ngModel)]="selectedGame"
-                class="game-select">
-                @for (game of games; track game) {
-                  <option [value]="game">
-                    {{ game === 'all' ? 'All Games' : game }}
-                  </option>
-                }
-              </select>
-            </div>
-          }
-        </div>
-
-        <!-- Browse by Game -->
-        <div class="sidebar-section">
-          <h3>Browse by Game</h3>
-          <div class="game-list">
-            <button 
-              class="game-item"
-              [class.active]="selectedGame === 'all'"
-              (click)="selectedGame = 'all'">
-              <span class="game-icon">🎮</span>
-              <span>All Games</span>
-            </button>
-            <button 
-              class="game-item"
-              [class.active]="selectedGame === 'Counter-Strike 2'"
-              (click)="selectedGame = 'Counter-Strike 2'">
-              <span class="game-icon">🔫</span>
-              <span>Counter-Strike 2</span>
-            </button>
-            <button 
-              class="game-item"
-              [class.active]="selectedGame === 'Dota 2'"
-              (click)="selectedGame = 'Dota 2'">
-              <span class="game-icon">⚔️</span>
-              <span>Dota 2</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="sidebar-section">
-          <button class="btn btn-primary full-width">Sell an item</button>
-        </div>
-
+      <!-- Sidebar Filters -->
+      <aside class="w-full lg:w-64 flex-shrink-0">
+        <app-sidebar-filters></app-sidebar-filters>
       </aside>
 
+      <!-- Main Grid Area -->
+      <div class="flex-1">
+        
+        <!-- Featured Trade Card -->
+        <div class="mb-8">
+          <app-featured-trade></app-featured-trade>
+        </div>
+
+        <!-- Trade Item Grid -->
+        <app-trade-grid></app-trade-grid>
+        
+      </div>
     </div>
-  </div>
+  </main>
+
+  <!-- Trade Modal -->
+  <app-trade-modal 
+    *ngIf="selectedTradeItem" 
+    [targetItem]="selectedTradeItem"
+    (close)="closeTradeModal()"
+    (tradeSent)="handleTradeSent($event)"
+  ></app-trade-modal>
 </div>
 
 <router-outlet />

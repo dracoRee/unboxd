@@ -1,7 +1,10 @@
-/* Steam Market Inspired Design System */
-
-/* Import Modern Fonts */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Steam Market Inspired Design System */
 
 /* CSS Custom Properties - Steam Color Palette */
 :root {

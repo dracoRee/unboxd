@@ -1,0 +1,15 @@
+<div class="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
+  @for (tab of categories; track tab) {
+    <button 
+      (click)="selectTab(tab)"
+      [class.bg-accent-600]="activeTab === tab"
+      [class.text-white]="activeTab === tab"
+      [class.bg-white]="activeTab !== tab"
+      [class.text-gray-600]="activeTab !== tab"
+      [class.border-gray-200]="activeTab !== tab"
+      class="px-4 py-2 rounded-full text-sm font-medium border transition-all whitespace-nowrap hover:border-accent-400"
+    >
+      {{ tab }}
+    </button>
+  }
+</div>
