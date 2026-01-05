@@ -14,12 +14,93 @@ datasource db {
 }
 
 // Data models
+// Data models
 model User {
-  id               Int     @id @default(autoincrement())
-  email            String  @unique
+  id               Int               @id @default(autoincrement())
+  email            String            @unique
   name             String?
   password         String
   resetToken       String?
   resetTokenExpiry DateTime?
-  posts            Post[]
+  collection       UserCollectible[]
+  wishlist         WishlistItem[]
+  proposedTrades   Trade[]           @relation("ProposedTrades")
+  receivedTrades   Trade[]           @relation("ReceivedTrades")
+  messages         Message[]
+}
+
+model Series {
+  id          Int           @id @default(autoincrement())
+  name        String        @unique
+  description String?
+  imageUrl    String?
+  items       Collectible[]
+}
+
+model Collectible {
+  id             Int                @id @default(autoincrement())
+  name           String
+  rarity         String
+  referenceValue Float
+  imageUrl       String
+  seriesId       Int
+  series         Series             @relation(fields: [seriesId], references: [id])
+  owners         UserCollectible[]
+  wishlistedBy   WishlistItem[]
+  trades         Trade[]
+  offeredIn      TradeOfferedItem[]
+}
+
+model UserCollectible {
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  collectibleId Int
+  user          User        @relation(fields: [userId], references: [id])
+  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  acquiredAt    DateTime    @default(now())
+
+  @@unique([userId, collectibleId])
+}
+
+model Trade {
+  id           Int                @id @default(autoincrement())
+  proposerId   Int
+  receiverId   Int
+  targetItemId Int
+  status       String             @default("PENDING")
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  proposer     User               @relation("ProposedTrades", fields: [proposerId], references: [id])
+  receiver     User               @relation("ReceivedTrades", fields: [receiverId], references: [id])
+  targetItem   Collectible        @relation(fields: [targetItemId], references: [id])
+  offeredItems TradeOfferedItem[]
+  messages     Message[]
+}
+
+model TradeOfferedItem {
+  id            Int         @id @default(autoincrement())
+  tradeId       Int
+  collectibleId Int
+  trade         Trade       @relation(fields: [tradeId], references: [id])
+  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+}
+
+model WishlistItem {
+  id            Int         @id @default(autoincrement())
+  userId        Int
+  collectibleId Int
+  user          User        @relation(fields: [userId], references: [id])
+  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+
+  @@unique([userId, collectibleId])
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  tradeId   Int
+  senderId  Int
+  content   String
+  createdAt DateTime @default(now())
+  trade     Trade    @relation(fields: [tradeId], references: [id])
+  sender    User     @relation(fields: [senderId], references: [id])
 }

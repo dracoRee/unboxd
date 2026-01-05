@@ -3,6 +3,7 @@ import { BrowseComponent } from './pages/browse/browse.component';
 import { TradesComponent } from './pages/trades/trades.component';
 import { WishlistComponent } from './pages/wishlist/wishlist.component';
 import { InboxComponent } from './pages/inbox/inbox.component';
+import { MyCollectionComponent } from './pages/my-collection/my-collection.component';
 import { LoginComponent } from './pages/login/login.component';
 import { RegisterComponent } from './pages/register/register.component';
 import { ForgotPasswordComponent } from './pages/forgot-password/forgot-password.component';
@@ -19,5 +20,6 @@ export const routes: Routes = [
   { path: 'trades', component: TradesComponent, canActivate: [authGuard] },
   { path: 'wishlist', component: WishlistComponent, canActivate: [authGuard] },
   { path: 'inbox', component: InboxComponent, canActivate: [authGuard] },
+  { path: 'my-collection', component: MyCollectionComponent, canActivate: [authGuard] },
   { path: '**', redirectTo: 'browse' }
 ];

@@ -49,11 +49,19 @@ export class TradeModalComponent implements OnInit {
   sendOffer() {
     if (this.selectedItems.size === 0) return;
     
-    this.tradeSent.emit({
-      target: this.targetItem,
-      offered: this.myCollection.filter(item => this.selectedItems.has(item.id)),
-      valueStatus: this.valueComparison
+    const offeredIds = Array.from(this.selectedItems).map(id => parseInt(id));
+    // For demo/prototype, receiverId is assumed based on common practices or hardcoded to another test user
+    const receiverId = 2; // Hypothetical second user in the seed
+
+    this.tradeService.sendTradeOffer(receiverId, parseInt(this.targetItem.id), offeredIds).subscribe({
+      next: (trade) => {
+        this.tradeSent.emit(trade);
+        this.close.emit();
+      },
+      error: (err) => {
+        console.error('Failed to send trade', err);
+        alert('Failed to send trade offer. Please try again.');
+      }
     });
-    this.close.emit();
   }
 }

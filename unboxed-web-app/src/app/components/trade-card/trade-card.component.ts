@@ -19,7 +19,17 @@ export class TradeCardComponent {
 
   toggleFavourite(event: Event) {
     event.stopPropagation();
-    this.isFavourited = !this.isFavourited;
+    if (!this.isFavourited) {
+      this.tradeService.addToWishlist(1, parseInt(this.item.id)).subscribe({
+        next: () => this.isFavourited = true,
+        error: (err) => console.error('Failed to wishlist', err)
+      });
+    } else {
+      this.tradeService.removeFromWishlist(1, parseInt(this.item.id)).subscribe({
+        next: () => this.isFavourited = false,
+        error: (err) => console.error('Failed to remove from wishlist', err)
+      });
+    }
   }
 
   onProposeTrade() {

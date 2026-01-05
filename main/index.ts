@@ -6,8 +6,12 @@ import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
+import multer from 'multer';
+import { identifyCollectible } from './services/ai.service.js';
 
 dotenv.config();
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 app.use(cors());
@@ -134,6 +138,231 @@ app.post('/auth/reset-password', async (req, res) => {
     res.json({ message: 'Password reset successful' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// AI Recognition
+app.post('/ai/recognize', upload.single('image'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image provided' });
+  }
+
+  try {
+    const identification = await identifyCollectible(req.file.buffer, req.file.mimetype);
+    
+    // Attempt to find the matching collectible in our database
+    const collectible = await prisma.collectible.findFirst({
+      where: {
+        name: { contains: identification.name, mode: 'insensitive' },
+        series: { name: { contains: identification.series, mode: 'insensitive' } }
+      },
+      include: { series: true }
+    });
+
+    res.json({ identification, dbMatch: collectible });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'AI recognition failed' });
+  }
+});
+
+// Collection Management
+app.get('/collection/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const collection = await prisma.userCollectible.findMany({
+      where: { userId: parseInt(userId) },
+      include: {
+        collectible: {
+          include: { series: true }
+        }
+      }
+    });
+
+    // Group by series to show mastery progress
+    const seriesStats = await prisma.series.findMany({
+      include: { items: true }
+    });
+
+    const userProgress = seriesStats.map((series: any) => {
+      const ownedInSeries = collection.filter((uc: any) => uc.collectible.seriesId === series.id);
+      return {
+        seriesId: series.id,
+        seriesName: series.name,
+        totalItems: series.items.length,
+        ownedItems: ownedInSeries.length,
+        items: series.items.map((item: any) => ({
+          ...item,
+          isOwned: ownedInSeries.some((uc: any) => uc.collectibleId === item.id)
+        }))
+      };
+    });
+
+    res.json(userProgress);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch collection' });
+  }
+});
+
+app.post('/collection/add', async (req, res) => {
+  const { userId, collectibleId } = req.body;
+  try {
+    const userCollectible = await prisma.userCollectible.create({
+      data: {
+        userId: parseInt(userId),
+        collectibleId: parseInt(collectibleId)
+      }
+    });
+    res.status(201).json(userCollectible);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add item to collection' });
+  }
+});
+
+// Trades API
+app.post('/trades', async (req, res) => {
+  const { proposerId, receiverId, targetItemId, offeredItemIds } = req.body;
+  try {
+    const trade = await prisma.trade.create({
+      data: {
+        proposerId: parseInt(proposerId),
+        receiverId: parseInt(receiverId),
+        targetItemId: parseInt(targetItemId),
+        status: 'PENDING',
+        offeredItems: {
+          create: offeredItemIds.map((id: number) => ({ collectibleId: id }))
+        }
+      },
+      include: {
+        offeredItems: { include: { collectible: true } },
+        targetItem: true,
+        proposer: { select: { name: true, email: true } },
+        receiver: { select: { name: true, email: true } }
+      }
+    });
+    res.status(201).json(trade);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to propose trade' });
+  }
+});
+
+app.get('/trades/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const id = parseInt(userId);
+  try {
+    const trades = await prisma.trade.findMany({
+      where: {
+        OR: [{ proposerId: id }, { receiverId: id }]
+      },
+      include: {
+        offeredItems: { include: { collectible: true } },
+        targetItem: true,
+        proposer: { select: { id: true, name: true } },
+        receiver: { select: { id: true, name: true } },
+        messages: { orderBy: { createdAt: 'asc' } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(trades);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch trades' });
+  }
+});
+
+app.patch('/trades/:id', async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+  try {
+    const trade = await prisma.trade.update({
+      where: { id: parseInt(id) },
+      data: { status }
+    });
+
+    // If accepted, we could theoretically swap ownership here, 
+    // but for prototype, we just update status.
+    res.json(trade);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update trade' });
+  }
+});
+
+// Wishlist API
+app.post('/wishlist', async (req, res) => {
+  const { userId, collectibleId } = req.body;
+  try {
+    const item = await prisma.wishlistItem.create({
+      data: {
+        userId: parseInt(userId),
+        collectibleId: parseInt(collectibleId)
+      }
+    });
+    res.status(201).json(item);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to add to wishlist' });
+  }
+});
+
+app.get('/wishlist/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const wishlist = await prisma.wishlistItem.findMany({
+      where: { userId: parseInt(userId) },
+      include: {
+        collectible: { include: { series: true } }
+      }
+    });
+    res.json(wishlist.map(w => w.collectible));
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch wishlist' });
+  }
+});
+
+app.delete('/wishlist/:userId/:collectibleId', async (req, res) => {
+  const { userId, collectibleId } = req.params;
+  try {
+    await prisma.wishlistItem.delete({
+      where: {
+        userId_collectibleId: {
+          userId: parseInt(userId),
+          collectibleId: parseInt(collectibleId)
+        }
+      }
+    });
+    res.json({ message: 'Removed from wishlist' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to remove from wishlist' });
+  }
+});
+
+// Messaging API
+app.post('/messages', async (req, res) => {
+  const { tradeId, senderId, content } = req.body;
+  try {
+    const message = await prisma.message.create({
+      data: {
+        tradeId: parseInt(tradeId),
+        senderId: parseInt(senderId),
+        content
+      }
+    });
+    res.status(201).json(message);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to send message' });
+  }
+});
+
+app.get('/messages/:tradeId', async (req, res) => {
+  const { tradeId } = req.params;
+  try {
+    const messages = await prisma.message.findMany({
+      where: { tradeId: parseInt(tradeId) },
+      orderBy: { createdAt: 'asc' },
+      include: { sender: { select: { name: true } } }
+    });
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
 
