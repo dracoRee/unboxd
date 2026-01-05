@@ -1,0 +1,60 @@
+<div class="login-container">
+  <div class="auth-card glass">
+    <div class="logo">
+      <span class="u-box">U</span>
+      <h1>unboxed.</h1>
+    </div>
+    
+    <h2>Welcome Back</h2>
+    <p class="subtitle">Sign in to continue trading</p>
+
+    <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input 
+          type="email"
+          id="email" 
+          name="email" 
+          [(ngModel)]="email" 
+          placeholder="Enter your email" 
+          required
+          #emailInput="ngModel"
+        >
+      </div>
+
+      <div class="form-group">
+        <div class="label-row">
+          <label for="password">Password</label>
+          <a routerLink="/forgot-password" class="forgot-link">Forgot?</a>
+        </div>
+        <input 
+          type="password" 
+          id="password" 
+          name="password" 
+          [(ngModel)]="password" 
+          placeholder="••••••••" 
+          required
+          #passwordInput="ngModel"
+        >
+      </div>
+
+      @if (error()) {
+        <div class="error-banner">
+          {{ error() }}
+        </div>
+      }
+
+      <button type="submit" [disabled]="!loginForm.form.valid || loading()" class="btn-primary">
+        @if (loading()) {
+          <span class="loader"></span>
+        } @else {
+          Sign In
+        }
+      </button>
+    </form>
+
+    <div class="auth-footer">
+      <p>Don't have an account? <a routerLink="/register">Sign up</a></p>
+    </div>
+  </div>
+</div>
