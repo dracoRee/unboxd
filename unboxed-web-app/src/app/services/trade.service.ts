@@ -1,8 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, Subject, BehaviorSubject, combineLatest, of } from 'rxjs';
-import { map, switchMap, tap } from 'rxjs/operators';
+import { Observable, Subject, BehaviorSubject, combineLatest, of, from } from 'rxjs';
+import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { TradeItem } from '../models/trade-item.model';
+import { SupabaseService } from './supabase.service';
 
 export interface TradeFilters {
   search?: string;
@@ -50,29 +51,42 @@ export class TradeService {
     })
   );
 
-  constructor(private http: HttpClient) {
+  constructor(
+    private http: HttpClient,
+    private supabaseService: SupabaseService
+  ) {
     this.refreshCatalog();
   }
 
+  /**
+   * Refresh catalog by fetching items directly from Supabase
+   */
   refreshCatalog() {
-    this.http.get<any[]>(`${this.apiUrl}/collection/1`).subscribe(series => {
-      const allItems: TradeItem[] = [];
-      series.forEach(s => {
-        s.items.forEach((item: any) => {
-          allItems.push({
-            id: item.id.toString(),
-            name: item.name,
-            series: s.seriesName,
-            rarity: item.rarity,
-            referenceValue: item.referenceValue,
-            imageUrl: item.imageUrl,
-            isFeatured: item.referenceValue > 40,
-            status: 'available'
-          });
-        });
-      });
-      this.itemsSubject.next(allItems);
+    from(this.supabaseService.getItems()).pipe(
+      map(items => items.map(item => this.mapToTradeItem(item))),
+      catchError(error => {
+        console.error('Error fetching items from Supabase:', error);
+        return of([]);
+      })
+    ).subscribe(items => {
+      this.itemsSubject.next(items);
     });
+  }
+
+  /**
+   * Map Supabase item to TradeItem model
+   */
+  private mapToTradeItem(item: any): TradeItem {
+    return {
+      item_id: item.id?.toString() || item.item_id?.toString() || '',
+      name: item.name,
+      series: item.series,
+      rarity: item.rarity,
+      referenceValue: item.referenceValue,
+      imageUrl: this.supabaseService.getImageUrl(item.imageUrl),
+      isFeatured: item.isFeatured || item.referenceValue > 40,
+      status: item.status || 'available'
+    };
   }
 
   getTradeItems(): Observable<TradeItem[]> {
@@ -86,26 +100,13 @@ export class TradeService {
   }
 
   getMyCollection(): Observable<TradeItem[]> {
-    // Return my items from the collection API
-    return this.http.get<any[]>(`${this.apiUrl}/collection/1`).pipe(
-      map(series => {
-        const myItems: TradeItem[] = [];
-        series.forEach(s => {
-          s.items.filter((i: any) => i.isOwned).forEach((item: any) => {
-            myItems.push({
-              id: item.id.toString(),
-              name: item.name,
-              series: s.seriesName,
-              rarity: item.rarity,
-              referenceValue: item.referenceValue,
-              imageUrl: item.imageUrl,
-              isFeatured: item.referenceValue > 40,
-              ownerId: '1'
-            });
-          });
-        });
-        return myItems;
-      })
+    // For now, return featured items as "my collection" for demo purposes
+    // In production, this would query a user_collection table in Supabase
+    return this.itemsSubject.pipe(
+      map(items => items.filter(item => item.isFeatured).map(item => ({
+        ...item,
+        ownerId: '1'
+      })))
     );
   }
 
@@ -141,7 +142,7 @@ export class TradeService {
   getWishlist(userId: number): Observable<TradeItem[]> {
     return this.http.get<any[]>(`${this.apiUrl}/wishlist/${userId}`).pipe(
       map(items => items.map(item => ({
-        id: item.id.toString(),
+        item_id: item.item_id.toString(),
         name: item.name,
         series: item.series.name,
         rarity: item.rarity,

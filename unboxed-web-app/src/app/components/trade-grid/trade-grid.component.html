@@ -1,5 +1,5 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-  @for (item of items; track item.id) {
+  @for (item of items; track item.item_id) {
     <app-trade-card [item]="item"></app-trade-card>
   }
 </div>

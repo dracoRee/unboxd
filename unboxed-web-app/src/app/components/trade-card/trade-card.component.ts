@@ -20,12 +20,12 @@ export class TradeCardComponent {
   toggleFavourite(event: Event) {
     event.stopPropagation();
     if (!this.isFavourited) {
-      this.tradeService.addToWishlist(1, parseInt(this.item.id)).subscribe({
+      this.tradeService.addToWishlist(1, parseInt(this.item.item_id)).subscribe({
         next: () => this.isFavourited = true,
         error: (err) => console.error('Failed to wishlist', err)
       });
     } else {
-      this.tradeService.removeFromWishlist(1, parseInt(this.item.id)).subscribe({
+      this.tradeService.removeFromWishlist(1, parseInt(this.item.item_id)).subscribe({
         next: () => this.isFavourited = false,
         error: (err) => console.error('Failed to remove from wishlist', err)
       });

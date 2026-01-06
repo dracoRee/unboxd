@@ -1,5 +1,5 @@
 export interface TradeItem {
-  id: string;
+  item_id: string;
   name: string;
   series: string;
   rarity: string;

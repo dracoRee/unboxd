@@ -36,7 +36,7 @@ export class TradeModalComponent implements OnInit {
 
   get totalOfferedValue(): number {
     return this.myCollection
-      .filter(item => this.selectedItems.has(item.id))
+      .filter(item => this.selectedItems.has(item.item_id))
       .reduce((sum, item) => sum + item.referenceValue, 0);
   }
 
@@ -53,7 +53,7 @@ export class TradeModalComponent implements OnInit {
     // For demo/prototype, receiverId is assumed based on common practices or hardcoded to another test user
     const receiverId = 2; // Hypothetical second user in the seed
 
-    this.tradeService.sendTradeOffer(receiverId, parseInt(this.targetItem.id), offeredIds).subscribe({
+    this.tradeService.sendTradeOffer(receiverId, parseInt(this.targetItem.item_id), offeredIds).subscribe({
       next: (trade) => {
         this.tradeSent.emit(trade);
         this.close.emit();

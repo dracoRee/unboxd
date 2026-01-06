@@ -12,11 +12,11 @@ import { TradeItem } from '../../models/trade-item.model';
       <h1 class="text-3xl font-bold mb-8">My Wishlist</h1>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        @for (item of wishlist; track item.id) {
+        @for (item of wishlist; track item.item_id) {
           <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group">
             <div class="relative aspect-square overflow-hidden">
               <img [src]="item.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-              <button (click)="removeFromWishlist(item.id)" 
+              <button (click)="removeFromWishlist(item.item_id)" 
                       class="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full text-red-500 shadow-sm hover:bg-red-50 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
