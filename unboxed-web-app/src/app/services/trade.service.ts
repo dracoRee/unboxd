@@ -38,7 +38,7 @@ export class TradeService {
         
         const matchesSeries = !filters.series?.length || filters.series.includes(item.series);
         const matchesRarity = !filters.rarity?.length || filters.rarity.includes(item.rarity);
-        const matchesValue = !filters.maxValue || item.referenceValue <= filters.maxValue;
+        const matchesValue = filters.maxValue === undefined || item.referenceValue <= filters.maxValue;
         
         // Mocking category logic for now
         let matchesCategory = true;
@@ -77,6 +77,12 @@ export class TradeService {
 
   getTradeItems(): Observable<TradeItem[]> {
     return this.filteredItems$;
+  }
+
+  getFeaturedItems(): Observable<TradeItem[]> {
+    return this.itemsSubject.pipe(
+      map(items => items.filter(item => item.isFeatured))
+    );
   }
 
   getMyCollection(): Observable<TradeItem[]> {

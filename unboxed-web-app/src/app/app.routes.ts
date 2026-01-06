@@ -9,6 +9,7 @@ import { RegisterComponent } from './pages/register/register.component';
 import { ForgotPasswordComponent } from './pages/forgot-password/forgot-password.component';
 import { ResetPasswordComponent } from './pages/reset-password/reset-password.component';
 import { authGuard } from './guards/auth.guard';
+import { HomeComponent } from '../../config/Home';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'browse', pathMatch: 'full' },
@@ -21,5 +22,6 @@ export const routes: Routes = [
   { path: 'wishlist', component: WishlistComponent, canActivate: [authGuard] },
   { path: 'inbox', component: InboxComponent, canActivate: [authGuard] },
   { path: 'my-collection', component: MyCollectionComponent, canActivate: [authGuard] },
+  { path: 'home', component: HomeComponent },
   { path: '**', redirectTo: 'browse' }
 ];

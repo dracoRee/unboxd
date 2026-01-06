@@ -16,7 +16,7 @@ export class FeaturedTradeComponent implements OnInit {
   constructor(private tradeService: TradeService) {}
 
   ngOnInit(): void {
-    this.tradeService.getFeaturedItems().subscribe(items => {
+    this.tradeService.getFeaturedItems().subscribe((items: TradeItem[]) => {
       if (items.length > 0) {
         this.featuredItem = items[0];
       }
