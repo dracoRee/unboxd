@@ -19,11 +19,19 @@ export class SupabaseService {
       environment.supabaseKey,
       {
         auth: {
-          persistSession: false, // Disable session persistence to avoid lock issues
-          autoRefreshToken: false
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
         }
       }
     );
+  }
+
+  /**
+   * Get the Supabase Auth instance
+   */
+  get auth() {
+    return this.supabase.auth;
   }
 
   /**

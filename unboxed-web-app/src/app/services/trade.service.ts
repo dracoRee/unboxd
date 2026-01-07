@@ -4,6 +4,7 @@ import { Observable, Subject, BehaviorSubject, combineLatest, of, from } from 'r
 import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { TradeItem } from '../models/trade-item.model';
 import { SupabaseService } from './supabase.service';
+import { AuthService } from './auth.service';
 
 export interface TradeFilters {
   search?: string;
@@ -53,7 +54,8 @@ export class TradeService {
 
   constructor(
     private http: HttpClient,
-    private supabaseService: SupabaseService
+    private supabaseService: SupabaseService,
+    private authService: AuthService
   ) {
     this.refreshCatalog();
   }
@@ -104,8 +106,12 @@ export class TradeService {
   }
 
   getMyCollection(): Observable<TradeItem[]> {
-    // Fetch actual owned items for user 1 (hardcoded for proto)
-    return from(this.supabaseService.getUserCollection(1)).pipe(
+    const user = this.authService.currentUser();
+    if (!user) return of([]);
+
+    // Note: In a real app, you'd map user.id (UUID) to your numeric ID
+    // For now we'll try to fetch based on the logged in user
+    return from(this.supabaseService.getUserCollection(user.id)).pipe(
       map(data => data.map(row => {
         const item = row.Collectible;
         return {

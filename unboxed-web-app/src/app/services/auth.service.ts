@@ -1,73 +1,79 @@
 import { Injectable, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, tap, of, throwError } from 'rxjs';
-
-interface AuthResponse {
-  token: string;
-  user: {
-    id: number;
-    email: string;
-    name: string | null;
-  };
-}
+import { Observable, from, map, tap } from 'rxjs';
+import { SupabaseService } from './supabase.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:3000/auth';
   currentUser = signal<any>(null);
 
-  constructor(private http: HttpClient, private router: Router) {
-    const token = localStorage.getItem('token');
-    if (token) {
-      const user = JSON.parse(localStorage.getItem('user') || 'null');
-      this.currentUser.set(user);
-    }
+  constructor(
+    private supabaseService: SupabaseService, 
+    private router: Router
+  ) {
+    // 1. Initial Session Check
+    this.supabaseService.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        this.currentUser.set(session.user);
+      }
+    });
+
+    // 2. Listen for Auth Changes
+    this.supabaseService.auth.onAuthStateChange((event, session) => {
+      console.log('Auth State Changed:', event, session?.user?.email);
+      
+      if (session) {
+        this.currentUser.set(session.user);
+      } else {
+        this.currentUser.set(null);
+      }
+    });
   }
 
   register(data: any): Observable<any> {
-    return this.http.post(`${this.apiUrl}/register`, data);
-  }
-
-  login(credentials: any): Observable<AuthResponse> {
-    // Hardcoded login for demonstration
-    if (credentials.email === 'test@unboxed.com' && credentials.password === 'password123') {
-      const mockRes: AuthResponse = {
-        token: 'mock-jwt-token',
-        user: { id: 1, email: 'test@unboxed.com', name: 'Test User' }
-      };
-      
-      localStorage.setItem('token', mockRes.token);
-      localStorage.setItem('user', JSON.stringify(mockRes.user));
-      this.currentUser.set(mockRes.user);
-      
-      return of(mockRes);
-    }
-
-    return this.http.post<AuthResponse>(`${this.apiUrl}/login`, credentials).pipe(
-      tap(res => {
-        localStorage.setItem('token', res.token);
-        localStorage.setItem('user', JSON.stringify(res.user));
-        this.currentUser.set(res.user);
+    return from(this.supabaseService.auth.signUp({
+      email: data.email,
+      password: data.password,
+      options: {
+        data: {
+          name: data.name
+        }
+      }
+    })).pipe(
+      tap(({ data, error }) => {
+        if (error) throw error;
       })
     );
   }
 
+  login(credentials: any): Observable<any> {
+    return from(this.supabaseService.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password
+    })).pipe(
+      tap(({ data, error }) => {
+        if (error) throw error;
+        this.currentUser.set(data.user);
+      }),
+      map(({ data }) => data)
+    );
+  }
+
   logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    this.currentUser.set(null);
-    this.router.navigate(['/login']);
+    this.supabaseService.auth.signOut().then(() => {
+      this.currentUser.set(null);
+      this.router.navigate(['/login']);
+    });
   }
 
   forgotPassword(email: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/forgot-password`, { email });
+    return from(this.supabaseService.auth.resetPasswordForEmail(email));
   }
 
   resetPassword(data: any): Observable<any> {
-    return this.http.post(`${this.apiUrl}/reset-password`, data);
+    return from(this.supabaseService.auth.updateUser({ password: data.password }));
   }
 
   isLoggedIn(): boolean {
