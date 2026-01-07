@@ -77,15 +77,19 @@ export class TradeService {
    * Map Supabase item to TradeItem model
    */
   private mapToTradeItem(item: any): TradeItem {
+    // Handle either raw Collectible or join result
+    const collectible = item.Collectible || item;
+    const series = collectible.Series || item.Series;
+    
     return {
-      item_id: item.id?.toString() || item.item_id?.toString() || '',
-      name: item.name,
-      series: item.series,
-      rarity: item.rarity,
-      referenceValue: item.referenceValue,
-      imageUrl: this.supabaseService.getImageUrl(item.imageUrl),
-      isFeatured: item.isFeatured || item.referenceValue > 40,
-      status: item.status || 'available'
+      item_id: collectible.id?.toString() || '',
+      name: collectible.name,
+      series: series?.name || 'Unknown Series',
+      rarity: collectible.rarity,
+      referenceValue: collectible.referenceValue,
+      imageUrl: this.supabaseService.getImageUrl(collectible.imageUrl, true),
+      isFeatured: collectible.referenceValue > 40,
+      status: collectible.status || 'available'
     };
   }
 
@@ -100,13 +104,19 @@ export class TradeService {
   }
 
   getMyCollection(): Observable<TradeItem[]> {
-    // For now, return featured items as "my collection" for demo purposes
-    // In production, this would query a user_collection table in Supabase
-    return this.itemsSubject.pipe(
-      map(items => items.filter(item => item.isFeatured).map(item => ({
-        ...item,
-        ownerId: '1'
-      })))
+    // Fetch actual owned items for user 1 (hardcoded for proto)
+    return from(this.supabaseService.getUserCollection(1)).pipe(
+      map(data => data.map(row => {
+        const item = row.Collectible;
+        return {
+          ...this.mapToTradeItem(item),
+          ownerId: row.userId.toString()
+        };
+      })),
+      catchError(error => {
+        console.error('Error in getMyCollection:', error);
+        return of([]);
+      })
     );
   }
 
@@ -140,16 +150,12 @@ export class TradeService {
 
   // Wishlist
   getWishlist(userId: number): Observable<TradeItem[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/wishlist/${userId}`).pipe(
-      map(items => items.map(item => ({
-        item_id: item.item_id.toString(),
-        name: item.name,
-        series: item.series.name,
-        rarity: item.rarity,
-        referenceValue: item.referenceValue,
-        imageUrl: item.imageUrl,
-        isFeatured: false
-      })))
+    return from(this.supabaseService.getUserWishlist(userId)).pipe(
+      map(data => data.map(row => this.mapToTradeItem(row.Collectible))),
+      catchError(error => {
+        console.error('Error in getWishlist:', error);
+        return of([]);
+      })
     );
   }
 

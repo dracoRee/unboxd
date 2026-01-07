@@ -27,42 +27,69 @@ export class SupabaseService {
   }
 
   /**
-   * Get the Supabase client instance
-   */
-  getClient(): SupabaseClient {
-    return this.supabase;
-  }
-
-  /**
-   * Fetch all items from the items table
+   * Fetch all items from the Collectible table joined with Series
    */
   async getItems(): Promise<any[]> {
     console.log('Fetching items from Supabase...');
     
+    // Performance: join with Series to get series name
     const { data, error } = await this.supabase
-      .from('items')
-      .select('*');
+      .from('Collectible')
+      .select('*, Series(*)');
 
     if (error) {
       console.error('Error fetching items:', error);
       throw error;
     }
     
-    console.log('Fetched items:', data);
+    console.log('Fetched items with Series join:', data);
     return data || [];
   }
 
   /**
-   * Fetch items filtered by series
+   * Fetch items filtered by series ID or Name
    */
-  async getItemsBySeries(series: string): Promise<any[]> {
+  async getItemsBySeries(seriesId: number): Promise<any[]> {
     const { data, error } = await this.supabase
-      .from('items')
-      .select('*')
-      .eq('series', series);
+      .from('Collectible')
+      .select('*, Series(*)')
+      .eq('seriesId', seriesId);
 
     if (error) {
       console.error('Error fetching items by series:', error);
+      throw error;
+    }
+    return data || [];
+  }
+
+  /**
+   * Fetch items owned by a specific user
+   */
+  async getUserCollection(userId: number): Promise<any[]> {
+    const { data, error } = await this.supabase
+      .from('UserCollectible')
+      .select('*, Collectible(*, Series(*))')
+      .eq('userId', userId);
+
+    if (error) {
+      console.error('Error fetching user collection:', error);
+      throw error;
+    }
+    // Flatten result to return Collectible objects with additional acquiredAt info if needed
+    return data || [];
+  }
+
+  /**
+   * Fetch items in a user's wishlist
+   */
+  async getUserWishlist(userId: number): Promise<any[]> {
+    const { data, error } = await this.supabase
+      .from('WishlistItem')
+      .select('*, Collectible(*, Series(*))')
+      .eq('userId', userId);
+
+    if (error) {
+      console.error('Error fetching user wishlist:', error);
       throw error;
     }
     return data || [];
