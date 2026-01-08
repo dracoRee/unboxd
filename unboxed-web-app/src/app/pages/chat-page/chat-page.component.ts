@@ -78,10 +78,21 @@ import { Subscription } from 'rxjs';
                       {{ conv.updatedAt | date:'shortTime' }}
                     </span>
                   </div>
-                  <p class="text-xs text-gray-500 truncate">
-                    {{ conv.messages?.[0]?.content || 'Start a conversation' }}
+                  <p class="text-xs text-gray-500 truncate flex items-center gap-1">
+                    @if (conv.messages && conv.messages.length > 0) {
+                      <span class="font-semibold text-gray-700">
+                        {{ conv.messages[0].senderId === backendUser?.id ? 'You' : conv.messages[0].sender?.name }}:
+                      </span>
+                      {{ conv.messages[0].content }}
+                    } @else {
+                      Start a conversation
+                    }
                   </p>
                 </div>
+                <!-- Unread Dot -->
+                @if (conv.hasUnread && selectedConversation?.id !== conv.id) {
+                  <div class="w-2.5 h-2.5 bg-indigo-600 rounded-full shadow-sm animate-pulse"></div>
+                }
               </div>
             </div>
           } @empty {
@@ -114,6 +125,7 @@ import { Subscription } from 'rxjs';
               [conversationId]="selectedConversation.id" 
               [currentUserId]="backendUser.id"
               [senderName]="backendUser.name || 'Me'"
+              (onMessageSent)="handleNewMessage($event)"
               class="absolute inset-0 block">
             </app-chat>
           </div>
@@ -148,6 +160,11 @@ export class ChatPageComponent implements OnInit, OnDestroy {
   searchQuery = '';
   searchResults: any[] = [];
   private messageSubscription?: Subscription;
+
+  // Extend Conversation type locally for state management
+  // (In a real app, you might have a dedicated interface/model)
+  // conversations: (Conversation & { hasUnread?: boolean })[] = []; 
+  // We'll just cast or use property access as TS allows it in some contexts here.
 
   constructor(
     private messagingService: MessagingService,
@@ -220,6 +237,11 @@ export class ChatPageComponent implements OnInit, OnDestroy {
       // Update the timestamp
       conv.updatedAt = msg.createdAt;
       
+      // Set unread if not selected
+      if (this.selectedConversation?.id !== msg.conversationId) {
+        conv.hasUnread = true;
+      }
+      
       // Remove from current position and add to the beginning (most recent first)
       this.conversations.splice(convIndex, 1);
       this.conversations.unshift(conv);
@@ -241,6 +263,7 @@ export class ChatPageComponent implements OnInit, OnDestroy {
 
   selectConversation(conv: Conversation) {
     this.selectedConversation = conv;
+    (conv as any).hasUnread = false;
   }
 
   onSearch() {

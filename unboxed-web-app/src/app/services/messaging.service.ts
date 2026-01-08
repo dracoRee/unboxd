@@ -18,6 +18,7 @@ export interface Conversation {
   users: { id: number; name: string }[];
   messages?: ChatMessage[];
   updatedAt: string;
+  hasUnread?: boolean;
 }
 
 @Injectable({

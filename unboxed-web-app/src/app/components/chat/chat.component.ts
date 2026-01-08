@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnChanges, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessagingService, ChatMessage } from '../../services/messaging.service';
@@ -54,6 +54,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
   @Input() conversationId!: number;
   @Input() currentUserId!: number;
   @Input() senderName: string = 'Me';
+  @Output() onMessageSent = new EventEmitter<ChatMessage>();
   
   @ViewChild('scrollContainer') scrollContainer!: ElementRef;
 
@@ -104,6 +105,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     // Optimistic UI update
     const tempMsg: ChatMessage = {
       id: -Math.random(),
+      conversationId: this.conversationId,
       senderId: this.currentUserId,
       content,
       createdAt: new Date().toISOString(),
@@ -119,6 +121,8 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       content,
       this.senderName
     );
+    
+    this.onMessageSent.emit(tempMsg);
   }
 
   ngAfterViewChecked() {

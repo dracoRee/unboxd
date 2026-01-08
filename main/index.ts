@@ -514,7 +514,8 @@ app.get('/conversations/user/:userId', async (req, res) => {
         users: { select: { id: true, name: true } },
         messages: {
           orderBy: { createdAt: 'desc' },
-          take: 1
+          take: 1,
+          include: { sender: { select: { name: true } } }
         }
       },
       orderBy: { updatedAt: 'desc' }
