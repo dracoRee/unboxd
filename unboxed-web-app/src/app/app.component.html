@@ -1,6 +1,6 @@
 <div class="main-page min-h-screen bg-gray-50 font-sans text-gray-900">
-  <!-- Top Navigation Bar -->
-  <div class="navbar">
+  <!-- Top Navigation Bar - Only show after login -->
+  <div class="navbar" *ngIf="showNavAndFooter">
     <app-navbar></app-navbar>
   </div>
   
@@ -8,6 +8,12 @@
    <div class="content">
       <router-outlet></router-outlet>
    </div>
+
+   <!-- Footer - Only show after login -->
+    <div class="footer">
+      <app-footer *ngIf="showNavAndFooter"></app-footer>
+    </div>
+  
   
   <!-- Trade Modal -->
   <app-trade-modal 
