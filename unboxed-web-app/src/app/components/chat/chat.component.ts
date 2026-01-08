@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, Input, OnInit, OnChanges, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessagingService, ChatMessage } from '../../services/messaging.service';
@@ -50,10 +50,12 @@ import { Subscription } from 'rxjs';
     }
   `]
 })
-export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
   @Input() conversationId!: number;
   @Input() currentUserId!: number;
-  @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
+  @Input() senderName: string = 'Me';
+  
+  @ViewChild('scrollContainer') scrollContainer!: ElementRef;
 
   messages: ChatMessage[] = [];
   newMessage = '';
@@ -67,7 +69,6 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngOnChanges() {
-    // Reload if conversationId changes
     this.loadMessages();
     this.setupSocket();
   }
@@ -94,6 +95,32 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
 
+  sendMessage() {
+    if (!this.newMessage.trim()) return;
+    
+    const content = this.newMessage.trim();
+    this.newMessage = '';
+
+    // Optimistic UI update
+    const tempMsg: ChatMessage = {
+      id: -Math.random(),
+      senderId: this.currentUserId,
+      content,
+      createdAt: new Date().toISOString(),
+      sender: { name: this.senderName }
+    };
+    this.messages.push(tempMsg);
+    this.scrollToBottom();
+
+    // Send via socket
+    this.messagingService.sendMessageSocket(
+      this.conversationId,
+      this.currentUserId,
+      content,
+      this.senderName
+    );
+  }
+
   ngAfterViewChecked() {
     this.scrollToBottom();
   }
@@ -104,20 +131,11 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
-  sendMessage() {
-    if (!this.newMessage.trim()) return;
-    
-    this.messagingService.sendMessage(this.conversationId, this.currentUserId, this.newMessage).subscribe({
-      next: () => {
-        this.newMessage = '';
-      },
-      error: (err) => console.error('Failed to send message', err)
-    });
-  }
-
   private scrollToBottom(): void {
-    try {
-      this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
-    } catch(err) { }
+    if (this.scrollContainer) {
+      try {
+        this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
+      } catch(err) { }
+    }
   }
 }
