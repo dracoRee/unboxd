@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { ChatPageComponent } from './pages/chat-page/chat-page.component';
 import { BrowseComponent } from './pages/browse/browse.component';
 import { TradesComponent } from './pages/trades/trades.component';
 import { WishlistComponent } from './pages/wishlist/wishlist.component';
@@ -13,6 +14,7 @@ import { HomeComponent } from '../../config/Home';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'browse', pathMatch: 'full' },
+  { path: 'chat', component: ChatPageComponent, canActivate: [authGuard] },
   { path: 'login', component: LoginComponent },
   { path: 'register', component: RegisterComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },

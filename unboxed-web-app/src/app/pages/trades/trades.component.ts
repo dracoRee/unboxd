@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TradeService } from '../../services/trade.service';
+import { ChatComponent } from '../../components/chat/chat.component';
 
 @Component({
   selector: 'app-trades',
@@ -55,8 +56,8 @@ import { TradeService } from '../../services/trade.service';
                 }
               </div>
 
-              <!-- Status & Actions -->
-              <div class="flex items-center gap-4 min-w-[200px] justify-end">
+            <!-- Status & Actions -->
+            <div class="flex items-center gap-4 min-w-[200px] justify-end">
                 <span [class.bg-yellow-100]="trade.status === 'PENDING'"
                       [class.text-yellow-700]="trade.status === 'PENDING'"
                       [class.bg-green-100]="trade.status === 'ACCEPTED'"
@@ -79,9 +80,9 @@ import { TradeService } from '../../services/trade.service';
                     </button>
                   </div>
                 }
-              </div>
             </div>
           </div>
+        </div>
         } @empty {
           <div class="bg-gray-50 border-2 border-dashed border-gray-200 p-12 rounded-3xl text-center">
             <p class="text-gray-500">No {{ activeTab }} trades found.</p>
@@ -89,12 +90,22 @@ import { TradeService } from '../../services/trade.service';
         }
       </div>
     </div>
-  `
+  `,
+  styles: [`
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+  `]
 })
 export class TradesComponent implements OnInit {
   trades: any[] = [];
   activeTab: 'outgoing' | 'incoming' = 'outgoing';
   userId = 1; // Prototype user
+  activeChatTradeId: number | null = null;
 
   constructor(private tradeService: TradeService) {}
 
