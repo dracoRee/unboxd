@@ -15,12 +15,47 @@ export class RegisterComponent {
   name = '';
   email = '';
   password = '';
+  confirmPassword = '';
   error = signal('');
   loading = signal(false);
 
   constructor(private authService: AuthService, private router: Router) {}
 
+  isPasswordComplex(): boolean {
+    return this.hasUpperCase() && this.hasLowerCase() && this.hasSpecialChar() && this.hasMinLength();
+  }
+
+  hasUpperCase(): boolean {
+    return /[A-Z]/.test(this.password);
+  }
+
+  hasLowerCase(): boolean {
+    return /[a-z]/.test(this.password);
+  }
+
+  hasSpecialChar(): boolean {
+    return /[!@#$%^&*(),.?":{}|<>]/.test(this.password);
+  }
+
+  hasMinLength(): boolean {
+    return this.password.length >= 8;
+  }
+
+  passwordsMatch(): boolean {
+    return this.password === this.confirmPassword;
+  }
+
   onSubmit() {
+    if (!this.isPasswordComplex()) {
+      this.error.set('Password must have 8+ chars, uppercase, lowercase, and a special character.');
+      return;
+    }
+
+    if (!this.passwordsMatch()) {
+      this.error.set('Passwords do not match.');
+      return;
+    }
+
     this.loading.set(true);
     this.error.set('');
     this.authService.register({ name: this.name, email: this.email, password: this.password }).subscribe({
@@ -28,7 +63,7 @@ export class RegisterComponent {
         this.router.navigate(['/login'], { queryParams: { registered: true } });
       },
       error: (err) => {
-        this.error.set(err.error?.error || 'Registration failed');
+        this.error.set(err.message || 'Registration failed');
         this.loading.set(false);
       }
     });

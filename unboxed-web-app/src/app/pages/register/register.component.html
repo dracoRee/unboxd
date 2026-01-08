@@ -42,8 +42,39 @@
           [(ngModel)]="password" 
           placeholder="Create a strong password" 
           required
-          minlength="6"
+          #passwordInput="ngModel"
         >
+        
+        <div class="password-requirements mt-2">
+          <p class="text-xs mb-1" [class.text-green-600]="hasMinLength()" [class.text-gray-400]="!hasMinLength()">
+            {{ hasMinLength() ? '✓' : '○' }} At least 8 characters
+          </p>
+          <p class="text-xs mb-1" [class.text-green-600]="hasUpperCase()" [class.text-gray-400]="!hasUpperCase()">
+            {{ hasUpperCase() ? '✓' : '○' }} One uppercase letter
+          </p>
+          <p class="text-xs mb-1" [class.text-green-600]="hasLowerCase()" [class.text-gray-400]="!hasLowerCase()">
+            {{ hasLowerCase() ? '✓' : '○' }} One lowercase letter
+          </p>
+          <p class="text-xs mb-1" [class.text-green-600]="hasSpecialChar()" [class.text-gray-400]="!hasSpecialChar()">
+            {{ hasSpecialChar() ? '✓' : '○' }} One special character
+          </p>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <input 
+          type="password" 
+          id="confirmPassword" 
+          name="confirmPassword" 
+          [(ngModel)]="confirmPassword" 
+          placeholder="Repeat your password" 
+          required
+          #confirmPasswordInput="ngModel"
+        >
+        @if (confirmPassword && password !== confirmPassword) {
+          <p class="text-xs text-red-500 mt-1">Passwords do not match</p>
+        }
       </div>
 
       @if (error()) {
@@ -52,7 +83,7 @@
         </div>
       }
 
-      <button type="submit" [disabled]="!registerForm.form.valid || loading()" class="btn-primary">
+      <button type="submit" [disabled]="!registerForm.form.valid || !isPasswordComplex() || !passwordsMatch() || loading()" class="btn-primary">
         @if (loading()) {
           <span class="loader"></span>
         } @else {
