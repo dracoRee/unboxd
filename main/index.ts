@@ -46,6 +46,39 @@ io.on('connection', (socket) => {
     console.log(`User ${socket.id} joined conversation_${conversationId}`);
   });
 
+  socket.on('send_message', async (data) => {
+    const { conversationId, senderId, content, senderName } = data;
+    
+    const messagePayload = {
+      id: Math.random(), // Temp ID for the UI
+      conversationId: parseInt(conversationId),
+      senderId: parseInt(senderId),
+      content,
+      createdAt: new Date().toISOString(),
+      sender: { name: senderName || 'User' }
+    };
+
+    // 1. Broadcast to everyone else in the room immediately
+    socket.to(`conversation_${conversationId}`).emit('new_message', messagePayload);
+
+    // 2. Background persistence
+    try {
+      await prisma.message.create({
+        data: {
+          conversationId: parseInt(conversationId),
+          senderId: parseInt(senderId),
+          content
+        }
+      });
+      await prisma.conversation.update({
+        where: { id: parseInt(conversationId) },
+        data: { updatedAt: new Date() }
+      });
+    } catch (error) {
+      console.error('Socket message save failed:', error);
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });

@@ -71,4 +71,8 @@ export class MessagingService {
   sendMessage(conversationId: number, senderId: number, content: string): Observable<ChatMessage> {
     return this.http.post<ChatMessage>(`${this.apiUrl}/messages`, { conversationId, senderId, content });
   }
+
+  sendMessageSocket(conversationId: number, senderId: number, content: string, senderName: string) {
+    this.socket.emit('send_message', { conversationId, senderId, content, senderName });
+  }
 }

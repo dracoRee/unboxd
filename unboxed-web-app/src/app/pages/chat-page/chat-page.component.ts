@@ -1,9 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatComponent } from '../../components/chat/chat.component';
-import { MessagingService, Conversation } from '../../services/messaging.service';
+import { MessagingService, Conversation, ChatMessage } from '../../services/messaging.service';
 import { AuthService } from '../../services/auth.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-chat-page',
@@ -112,6 +113,7 @@ import { AuthService } from '../../services/auth.service';
             <app-chat 
               [conversationId]="selectedConversation.id" 
               [currentUserId]="backendUser.id"
+              [senderName]="backendUser.name || 'Me'"
               class="absolute inset-0 block">
             </app-chat>
           </div>
@@ -136,7 +138,7 @@ import { AuthService } from '../../services/auth.service';
     }
   `]
 })
-export class ChatPageComponent implements OnInit {
+export class ChatPageComponent implements OnInit, OnDestroy {
   conversations: Conversation[] = [];
   selectedConversation: Conversation | null = null;
   currentUser: any; // Frontend Auth User (Supabase)
@@ -145,6 +147,7 @@ export class ChatPageComponent implements OnInit {
   showNewChat = false;
   searchQuery = '';
   searchResults: any[] = [];
+  private messageSubscription?: Subscription;
 
   constructor(
     private messagingService: MessagingService,
@@ -180,7 +183,55 @@ export class ChatPageComponent implements OnInit {
     if (!this.backendUser) return;
     this.messagingService.getUserConversations(this.backendUser.id).subscribe(data => {
       this.conversations = data;
+      // Join all conversation rooms for socket updates
+      this.conversations.forEach(conv => {
+        this.messagingService.joinConversation(conv.id);
+      });
+      // Setup socket listener for new messages
+      this.setupSocketListener();
     });
+  }
+
+  setupSocketListener() {
+    // Unsubscribe from previous subscription if exists
+    if (this.messageSubscription) {
+      this.messageSubscription.unsubscribe();
+    }
+
+    // Subscribe to new messages
+    this.messageSubscription = this.messagingService.onNewMessage().subscribe((msg: ChatMessage) => {
+      this.handleNewMessage(msg);
+    });
+  }
+
+  handleNewMessage(msg: ChatMessage) {
+    if (!msg.conversationId) return;
+
+    // Find the conversation in the list
+    const convIndex = this.conversations.findIndex(c => c.id === msg.conversationId);
+    
+    if (convIndex !== -1) {
+      // Update the conversation with the new message
+      const conv = this.conversations[convIndex];
+      
+      // Update messages array - set the new message as the first (latest) message
+      conv.messages = [msg];
+      
+      // Update the timestamp
+      conv.updatedAt = msg.createdAt;
+      
+      // Remove from current position and add to the beginning (most recent first)
+      this.conversations.splice(convIndex, 1);
+      this.conversations.unshift(conv);
+      
+      // Update selected conversation if it's the same one
+      if (this.selectedConversation?.id === msg.conversationId) {
+        this.selectedConversation = conv;
+      }
+    } else {
+      // If conversation not in list (shouldn't happen, but just in case), reload
+      this.loadConversations();
+    }
   }
 
   getOtherUser(conv: Conversation) {
@@ -221,8 +272,20 @@ export class ChatPageComponent implements OnInit {
       // Add to list if not exists, or define as selected
       if (!this.conversations.find(c => c.id === conv.id)) {
         this.conversations.unshift(conv);
+        // Join the conversation room for socket updates
+        this.messagingService.joinConversation(conv.id);
       }
       this.selectConversation(conv);
+      // Setup socket listener if not already done
+      if (!this.messageSubscription) {
+        this.setupSocketListener();
+      }
     });
+  }
+
+  ngOnDestroy() {
+    if (this.messageSubscription) {
+      this.messageSubscription.unsubscribe();
+    }
   }
 }
