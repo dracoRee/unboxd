@@ -13,7 +13,19 @@ dotenv.config();
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+
 const app = express();
+const server = createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:4200",
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
+
 app.use(cors({
   origin: 'http://localhost:4200',
   credentials: true
@@ -23,6 +35,21 @@ app.use(express.json());
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4200';
+
+// Socket.io connection handling
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log('User connected:', socket.id);
+
+  socket.on('join_conversation', (conversationId) => {
+    socket.join(`conversation_${conversationId}`);
+    console.log(`User ${socket.id} joined conversation_${conversationId}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', socket.id);
+  });
+});
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -338,28 +365,167 @@ app.delete('/wishlist/:userId/:collectibleId', async (req, res) => {
   }
 });
 
-// Messaging API
+// Messaging & Conversations API
+
+// Sync User (Find or Create)
+app.post('/users/sync', async (req, res) => {
+  const { email, name } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  try {
+    let user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, name: true, email: true }
+    });
+
+    if (!user) {
+      // Create shadow user
+      // Password is not needed as auth is handled by Supabase for this flow
+      // We set a dummy password or make it optional in schema (schema has String, not optional).
+      // We'll use a random hash or placeholder since this user can't login via legacy auth anyway.
+      user = await prisma.user.create({
+        data: {
+          email,
+          name: name || email.split('@')[0],
+          password: 'SUPABASE_AUTH_USER' // Placeholder
+        },
+        select: { id: true, name: true, email: true }
+      });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Sync failed:', error);
+    res.status(500).json({ error: 'Sync failed' });
+  }
+});
+
+// Search Users
+app.get('/users/search', async (req, res) => {
+  const { q } = req.query;
+  if (!q || typeof q !== 'string') return res.json([]);
+  
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        name: { contains: q, mode: 'insensitive' }
+      },
+      select: { id: true, name: true, email: true }
+    });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// Get/Start Conversation
+app.post('/conversations', async (req, res) => {
+  const { userIds } = req.body; // Array of user IDs including self
+  
+  if (!userIds || !Array.isArray(userIds) || userIds.length < 2) {
+    return res.status(400).json({ error: 'Invalid participants payload' });
+  }
+
+  try {
+    const ids = userIds.map((id: any) => parseInt(id)).filter((id: number) => !isNaN(id));
+    
+    if (ids.length < 2) {
+      console.error('Invalid user IDs for conversation:', userIds);
+      return res.status(400).json({ error: 'Invalid user IDs provided' });
+    }
+
+    const [userId1, userId2] = ids;
+
+    // Check if conversation exists
+    const existing = await prisma.conversation.findFirst({
+      where: {
+        AND: [
+          { users: { some: { id: userId1 } } },
+          { users: { some: { id: userId2 } } }
+        ]
+      },
+      include: { users: { select: { id: true, name: true } } }
+    });
+
+    if (existing) {
+      return res.json(existing);
+    }
+
+    // Create new conversation
+    const conversation = await prisma.conversation.create({
+      data: {
+        users: {
+          connect: ids.map((id: number) => ({ id }))
+        }
+      },
+      include: { users: { select: { id: true, name: true } } }
+    });
+    
+    console.log(`Created conversation ${conversation.id} for users ${ids.join(', ')}`);
+    res.json(conversation);
+  } catch (error) {
+    console.error('Failed to create conversation:', error);
+    res.status(500).json({ error: 'Failed to create conversation', details: String(error) });
+  }
+});
+
+// Get User's Conversations
+app.get('/conversations/user/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const conversations = await prisma.conversation.findMany({
+      where: {
+        users: { some: { id: parseInt(userId) } }
+      },
+      include: {
+        users: { select: { id: true, name: true } },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      },
+      orderBy: { updatedAt: 'desc' }
+    });
+    res.json(conversations);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch conversations' });
+  }
+});
+
 app.post('/messages', async (req, res) => {
-  const { tradeId, senderId, content } = req.body;
+  const { conversationId, senderId, content } = req.body;
   try {
     const message = await prisma.message.create({
       data: {
-        tradeId: parseInt(tradeId),
+        conversationId: parseInt(conversationId),
         senderId: parseInt(senderId),
         content
+      },
+      include: {
+        sender: { select: { name: true } }
       }
     });
+
+    // Update conversation timestamp
+    await prisma.conversation.update({
+      where: { id: parseInt(conversationId) },
+      data: { updatedAt: new Date() }
+    });
+
+    // Emit socket event
+    io.to(`conversation_${conversationId}`).emit('new_message', message);
+    
     res.status(201).json(message);
   } catch (error) {
     res.status(500).json({ error: 'Failed to send message' });
   }
 });
 
-app.get('/messages/:tradeId', async (req, res) => {
-  const { tradeId } = req.params;
+app.get('/messages/:conversationId', async (req, res) => {
+  const { conversationId } = req.params;
   try {
     const messages = await prisma.message.findMany({
-      where: { tradeId: parseInt(tradeId) },
+      where: { conversationId: parseInt(conversationId) },
       orderBy: { createdAt: 'asc' },
       include: { sender: { select: { name: true } } }
     });
@@ -369,6 +535,6 @@ app.get('/messages/:tradeId', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
