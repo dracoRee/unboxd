@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessagingService, ChatMessage } from '../../services/messaging.service';
@@ -9,54 +9,17 @@ import { Subscription } from 'rxjs';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './chat.component.html',
-  styles: [`
-    .chat-container {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      background: white;
-    }
-    .messages-area {
-      flex: 1;
-      overflow-y: auto;
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-    .message {
-      max-width: 80%;
-      padding: 0.5rem 1rem;
-      border-radius: 1rem;
-      word-wrap: break-word;
-    }
-    .message.sent {
-      align-self: flex-end;
-      background-color: #4f46e5;
-      color: white;
-      border-bottom-right-radius: 0.25rem;
-    }
-    .message.received {
-      align-self: flex-start;
-      background-color: #f3f4f6;
-      color: #1f2937;
-      border-bottom-left-radius: 0.25rem;
-    }
-    .input-area {
-      padding: 1rem;
-      border-top: 1px solid #e5e7eb;
-      display: flex;
-      gap: 0.5rem;
-    }
-  `]
+  styleUrls: ['./chat.component.css']
 })
-export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
+export class ChatComponent implements OnInit, OnDestroy, OnChanges, AfterViewChecked {
   @Input() conversationId!: number;
   @Input() currentUserId!: number;
+  @Input() senderName?: string;
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
 
   messages: ChatMessage[] = [];
   newMessage = '';
+
   private messageSubscription!: Subscription;
 
   constructor(private messagingService: MessagingService) {}
@@ -66,17 +29,23 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.setupSocket();
   }
 
-  ngOnChanges() {
-    // Reload if conversationId changes
-    this.loadMessages();
-    this.setupSocket();
+  ngOnChanges(changes: SimpleChanges) {
+    // Reload messages when conversation changes
+    if (changes['conversationId'] && !changes['conversationId'].firstChange) {
+      this.loadMessages();
+      this.setupSocket();
+    }
   }
 
   loadMessages() {
     if (!this.conversationId) return;
-    this.messagingService.getMessages(this.conversationId).subscribe(msgs => {
-      this.messages = msgs;
-      this.scrollToBottom();
+    
+    this.messagingService.getMessages(this.conversationId).subscribe({
+      next: (messages) => {
+        this.messages = messages;
+        this.scrollToBottom();
+      },
+      error: (err) => console.error('Error fetching messages:', err)
     });
   }
 
@@ -88,8 +57,11 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     
     this.messageSubscription = this.messagingService.onNewMessage().subscribe(msg => {
       if (msg.conversationId === this.conversationId) {
-        this.messages.push(msg);
-        this.scrollToBottom();
+        // Only add if not already in the list (avoid duplicates)
+        if (!this.messages.find(m => m.id === msg.id)) {
+          this.messages.push(msg);
+          this.scrollToBottom();
+        }
       }
     });
   }
