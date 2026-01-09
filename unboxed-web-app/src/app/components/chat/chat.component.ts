@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, OnDestroy, OnChanges, SimpleChanges, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MessagingService, ChatMessage } from '../../services/messaging.service';
@@ -11,11 +11,13 @@ import { Subscription } from 'rxjs';
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.css']
 })
-export class ChatComponent implements OnInit, OnDestroy, OnChanges, AfterViewChecked {
+export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChecked {
   @Input() conversationId!: number;
   @Input() currentUserId!: number;
-  @Input() senderName?: string;
-  @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
+  @Input() senderName: string = 'Me';
+  @Output() onMessageSent = new EventEmitter<ChatMessage>();
+  
+  @ViewChild('scrollContainer') scrollContainer!: ElementRef;
 
   messages: ChatMessage[] = [];
   newMessage = '';
@@ -29,12 +31,9 @@ export class ChatComponent implements OnInit, OnDestroy, OnChanges, AfterViewChe
     this.setupSocket();
   }
 
-  ngOnChanges(changes: SimpleChanges) {
-    // Reload messages when conversation changes
-    if (changes['conversationId'] && !changes['conversationId'].firstChange) {
-      this.loadMessages();
-      this.setupSocket();
-    }
+  ngOnChanges() {
+    this.loadMessages();
+    this.setupSocket();
   }
 
   loadMessages() {
@@ -66,6 +65,35 @@ export class ChatComponent implements OnInit, OnDestroy, OnChanges, AfterViewChe
     });
   }
 
+  sendMessage() {
+    if (!this.newMessage.trim()) return;
+    
+    const content = this.newMessage.trim();
+    this.newMessage = '';
+
+    // Optimistic UI update
+    const tempMsg: ChatMessage = {
+      id: -Math.random(),
+      conversationId: this.conversationId,
+      senderId: this.currentUserId,
+      content,
+      createdAt: new Date().toISOString(),
+      sender: { name: this.senderName }
+    };
+    this.messages.push(tempMsg);
+    this.scrollToBottom();
+
+    // Send via socket
+    this.messagingService.sendMessageSocket(
+      this.conversationId,
+      this.currentUserId,
+      content,
+      this.senderName
+    );
+    
+    this.onMessageSent.emit(tempMsg);
+  }
+
   ngAfterViewChecked() {
     this.scrollToBottom();
   }
@@ -76,20 +104,11 @@ export class ChatComponent implements OnInit, OnDestroy, OnChanges, AfterViewChe
     }
   }
 
-  sendMessage() {
-    if (!this.newMessage.trim()) return;
-    
-    this.messagingService.sendMessage(this.conversationId, this.currentUserId, this.newMessage).subscribe({
-      next: () => {
-        this.newMessage = '';
-      },
-      error: (err) => console.error('Failed to send message', err)
-    });
-  }
-
   private scrollToBottom(): void {
-    try {
-      this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
-    } catch(err) { }
+    if (this.scrollContainer) {
+      try {
+        this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight;
+      } catch(err) { }
+    }
   }
 }

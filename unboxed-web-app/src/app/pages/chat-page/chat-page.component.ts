@@ -1,9 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatComponent } from '../../components/chat/chat.component';
-import { MessagingService, Conversation } from '../../services/messaging.service';
+import { MessagingService, Conversation, ChatMessage } from '../../services/messaging.service';
 import { AuthService } from '../../services/auth.service';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-chat-page',
@@ -77,10 +78,21 @@ import { AuthService } from '../../services/auth.service';
                       {{ conv.updatedAt | date:'shortTime' }}
                     </span>
                   </div>
-                  <p class="text-xs text-gray-500 truncate">
-                    {{ conv.messages?.[0]?.content || 'Start a conversation' }}
+                  <p class="text-xs text-gray-500 truncate flex items-center gap-1">
+                    @if (conv.messages && conv.messages.length > 0) {
+                      <span class="font-semibold text-gray-700">
+                        {{ conv.messages[0].senderId === backendUser?.id ? 'You' : conv.messages[0].sender?.name }}:
+                      </span>
+                      {{ conv.messages[0].content }}
+                    } @else {
+                      Start a conversation
+                    }
                   </p>
                 </div>
+                <!-- Unread Dot -->
+                @if (conv.hasUnread && selectedConversation?.id !== conv.id) {
+                  <div class="w-2.5 h-2.5 bg-indigo-600 rounded-full shadow-sm animate-pulse"></div>
+                }
               </div>
             </div>
           } @empty {
@@ -112,6 +124,8 @@ import { AuthService } from '../../services/auth.service';
             <app-chat 
               [conversationId]="selectedConversation.id" 
               [currentUserId]="backendUser.id"
+              [senderName]="backendUser.name || 'Me'"
+              (onMessageSent)="handleNewMessage($event)"
               class="absolute inset-0 block">
             </app-chat>
           </div>
@@ -136,7 +150,7 @@ import { AuthService } from '../../services/auth.service';
     }
   `]
 })
-export class ChatPageComponent implements OnInit {
+export class ChatPageComponent implements OnInit, OnDestroy {
   conversations: Conversation[] = [];
   selectedConversation: Conversation | null = null;
   currentUser: any; // Frontend Auth User (Supabase)
@@ -145,6 +159,12 @@ export class ChatPageComponent implements OnInit {
   showNewChat = false;
   searchQuery = '';
   searchResults: any[] = [];
+  private messageSubscription?: Subscription;
+
+  // Extend Conversation type locally for state management
+  // (In a real app, you might have a dedicated interface/model)
+  // conversations: (Conversation & { hasUnread?: boolean })[] = []; 
+  // We'll just cast or use property access as TS allows it in some contexts here.
 
   constructor(
     private messagingService: MessagingService,
@@ -180,7 +200,60 @@ export class ChatPageComponent implements OnInit {
     if (!this.backendUser) return;
     this.messagingService.getUserConversations(this.backendUser.id).subscribe(data => {
       this.conversations = data;
+      // Join all conversation rooms for socket updates
+      this.conversations.forEach(conv => {
+        this.messagingService.joinConversation(conv.id);
+      });
+      // Setup socket listener for new messages
+      this.setupSocketListener();
     });
+  }
+
+  setupSocketListener() {
+    // Unsubscribe from previous subscription if exists
+    if (this.messageSubscription) {
+      this.messageSubscription.unsubscribe();
+    }
+
+    // Subscribe to new messages
+    this.messageSubscription = this.messagingService.onNewMessage().subscribe((msg: ChatMessage) => {
+      this.handleNewMessage(msg);
+    });
+  }
+
+  handleNewMessage(msg: ChatMessage) {
+    if (!msg.conversationId) return;
+
+    // Find the conversation in the list
+    const convIndex = this.conversations.findIndex(c => c.id === msg.conversationId);
+    
+    if (convIndex !== -1) {
+      // Update the conversation with the new message
+      const conv = this.conversations[convIndex];
+      
+      // Update messages array - set the new message as the first (latest) message
+      conv.messages = [msg];
+      
+      // Update the timestamp
+      conv.updatedAt = msg.createdAt;
+      
+      // Set unread if not selected
+      if (this.selectedConversation?.id !== msg.conversationId) {
+        conv.hasUnread = true;
+      }
+      
+      // Remove from current position and add to the beginning (most recent first)
+      this.conversations.splice(convIndex, 1);
+      this.conversations.unshift(conv);
+      
+      // Update selected conversation if it's the same one
+      if (this.selectedConversation?.id === msg.conversationId) {
+        this.selectedConversation = conv;
+      }
+    } else {
+      // If conversation not in list (shouldn't happen, but just in case), reload
+      this.loadConversations();
+    }
   }
 
   getOtherUser(conv: Conversation) {
@@ -190,6 +263,7 @@ export class ChatPageComponent implements OnInit {
 
   selectConversation(conv: Conversation) {
     this.selectedConversation = conv;
+    (conv as any).hasUnread = false;
   }
 
   onSearch() {
@@ -221,8 +295,20 @@ export class ChatPageComponent implements OnInit {
       // Add to list if not exists, or define as selected
       if (!this.conversations.find(c => c.id === conv.id)) {
         this.conversations.unshift(conv);
+        // Join the conversation room for socket updates
+        this.messagingService.joinConversation(conv.id);
       }
       this.selectConversation(conv);
+      // Setup socket listener if not already done
+      if (!this.messageSubscription) {
+        this.setupSocketListener();
+      }
     });
+  }
+
+  ngOnDestroy() {
+    if (this.messageSubscription) {
+      this.messageSubscription.unsubscribe();
+    }
   }
 }
