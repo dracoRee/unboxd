@@ -20,4 +20,3 @@ export class authGuard {
     return false;
   }
 }
-
