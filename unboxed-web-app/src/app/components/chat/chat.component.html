@@ -8,15 +8,22 @@
   <!-- Messages -->
   <div class="messages-area bg-gray-50" #scrollContainer>
     @for (msg of messages; track msg.id) {
-      <div class="message" 
+      <div class="message-wrapper" 
            [class.sent]="msg.senderId === currentUserId"
            [class.received]="msg.senderId !== currentUserId">
-        <div class="text-xs opacity-75 mb-1" *ngIf="msg.senderId !== currentUserId">
-          {{ msg.sender?.name || 'User ' + msg.senderId }}
-        </div>
-        <div>{{ msg.content }}</div>
-        <div class="text-[0.6rem] opacity-75 text-right mt-1">
-          {{ msg.createdAt | date:'shortTime' }}
+        <img [src]="msg.sender?.profilePicture || '/default-avatar.png'" 
+             [alt]="msg.sender?.name || 'User'"
+             class="message-avatar"
+             [routerLink]="['/profile', msg.senderId]"
+             (click)="$event.stopPropagation()">
+        <div class="message">
+          <div [routerLink]="['/profile', msg.senderId]" class="text-xs opacity-75 mb-1 hover:text-indigo-600 cursor-pointer" *ngIf="msg.senderId !== currentUserId">
+            {{ msg.sender?.name || 'User ' + msg.senderId }}
+          </div>
+          <div>{{ msg.content }}</div>
+          <div class="text-[0.6rem] opacity-75 text-right mt-1">
+            {{ msg.createdAt | date:'shortTime' }}
+          </div>
         </div>
       </div>
     } @empty {

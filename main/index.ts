@@ -49,17 +49,32 @@ io.on('connection', (socket) => {
   socket.on('send_message', async (data) => {
     const { conversationId, senderId, content, senderName } = data;
     
+    // Fetch sender profile picture from PublicUser
+    let profilePicture = null;
+    try {
+      const sender = await prisma.publicUser.findUnique({
+        where: { id: parseInt(senderId) },
+        select: { profilePicture: true }
+      });
+      profilePicture = sender?.profilePicture || null;
+    } catch (error) {
+      console.error('Failed to fetch sender profile picture:', error);
+    }
+    
     const messagePayload = {
       id: Math.random(), // Temp ID for the UI
       conversationId: parseInt(conversationId),
       senderId: parseInt(senderId),
       content,
       createdAt: new Date().toISOString(),
-      sender: { name: senderName || 'User' }
+      sender: { name: senderName || 'User', profilePicture }
     };
 
     // 1. Broadcast to everyone else in the room immediately
     socket.to(`conversation_${conversationId}`).emit('new_message', messagePayload);
+    
+    // Also emit to sender (for optimistic UI updates)
+    socket.emit('new_message', messagePayload);
 
     // 2. Background persistence
     try {
@@ -98,13 +113,30 @@ app.post('/auth/register', async (req, res) => {
   const { email, password, name } = req.body;
   try {
     const hashedPassword = await argon2.hash(password);
-    const user = await prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-      },
+    
+    // Create user and publicUser in a transaction
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+        },
+      });
+
+      // Create publicUser entry
+      await tx.publicUser.create({
+        data: {
+          id: newUser.id,
+          name: newUser.name || 'User',
+          bio: null,
+          profilePicture: null
+        }
+      });
+
+      return newUser;
     });
+
     res.status(201).json({ message: 'User created', userId: user.id });
   } catch (error: any) {
     if (error.code === 'P2002') {
@@ -412,18 +444,31 @@ app.post('/users/sync', async (req, res) => {
     });
 
     if (!user) {
-      // Create shadow user
-      // Password is not needed as auth is handled by Supabase for this flow
-      // We set a dummy password or make it optional in schema (schema has String, not optional).
-      // We'll use a random hash or placeholder since this user can't login via legacy auth anyway.
-      user = await prisma.user.create({
-        data: {
-          email,
-          name: name || email.split('@')[0],
-          password: 'SUPABASE_AUTH_USER' // Placeholder
-        },
-        select: { id: true, name: true, email: true }
+      // Create user and publicUser in a transaction
+      const result = await prisma.$transaction(async (tx) => {
+        const newUser = await tx.user.create({
+          data: {
+            email,
+            name: name || email.split('@')[0],
+            password: 'SUPABASE_AUTH_USER' // Placeholder
+          },
+          select: { id: true, name: true, email: true }
+        });
+
+        // Create publicUser entry
+        await tx.publicUser.create({
+          data: {
+            id: newUser.id,
+            name: newUser.name || 'User',
+            bio: null,
+            profilePicture: null
+          }
+        });
+
+        return newUser;
       });
+
+      user = result;
     }
     
     res.json(user);
@@ -439,15 +484,201 @@ app.get('/users/search', async (req, res) => {
   if (!q || typeof q !== 'string') return res.json([]);
   
   try {
-    const users = await prisma.user.findMany({
+    const publicUsers = await prisma.publicUser.findMany({
       where: {
         name: { contains: q, mode: 'insensitive' }
       },
-      select: { id: true, name: true, email: true }
+      select: { 
+        id: true,
+        name: true, 
+        profilePicture: true,
+        user: {
+          select: { email: true }
+        }
+      }
     });
+    
+    // Transform to match expected format
+    const users = publicUsers.map(pu => ({
+      id: pu.id,
+      name: pu.name,
+      email: pu.user.email,
+      profilePicture: pu.profilePicture
+    }));
+    
     res.json(users);
   } catch (error) {
     res.status(500).json({ error: 'Search failed' });
+  }
+});
+
+// Get Profile
+app.get('/users/profile/:id', async (req, res) => {
+  const { id } = req.params;
+  const currentUserId = req.query.currentUserId ? parseInt(req.query.currentUserId as string) : undefined;
+
+  try {
+    const userId = parseInt(id);
+    if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
+
+    // Read from publicUser table
+    const publicUser = await prisma.publicUser.findUnique({
+      where: { id: userId },
+      select: {
+        name: true,
+        bio: true,
+        profilePicture: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            _count: {
+              select: {
+                followedBy: true,
+                following: true,
+                collection: true
+              }
+            },
+            followedBy: currentUserId && !isNaN(currentUserId) ? {
+              where: { id: currentUserId },
+              select: { id: true }
+            } : undefined
+          }
+        }
+      }
+    });
+
+    if (!publicUser) return res.status(404).json({ error: 'User not found' });
+
+    // Flatten following status for the UI
+    const isFollowing = currentUserId ? (publicUser.user as any).followedBy?.length > 0 : false;
+    
+    // Construct response matching the expected format
+    const response = {
+      id: publicUser.user.id,
+      name: publicUser.name,
+      email: publicUser.user.email,
+      bio: publicUser.bio,
+      profilePicture: publicUser.profilePicture,
+      _count: publicUser.user._count,
+      isFollowing
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error('Profile fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch profile' });
+  }
+});
+
+// Update Profile
+app.patch('/users/profile', async (req, res) => {
+  const { userId, name, bio, profilePicture } = req.body;
+  try {
+    // Update both user and publicUser tables in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Update user table
+      await tx.user.update({
+        where: { id: parseInt(userId) },
+        data: { name, bio, profilePicture }
+      });
+
+      // Update publicUser table
+      const publicUser = await tx.publicUser.upsert({
+        where: { id: parseInt(userId) },
+        update: { name, bio, profilePicture },
+        create: { 
+          id: parseInt(userId), 
+          name: name || 'User', 
+          bio, 
+          profilePicture 
+        },
+        select: { id: true, name: true, bio: true, profilePicture: true }
+      });
+
+      return publicUser;
+    });
+
+    res.json({ ...result, id: parseInt(userId) });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Follow User
+app.post('/users/follow/:id', async (req, res) => {
+  const { followerId } = req.body;
+  const targetId = parseInt(req.params.id);
+
+  try {
+    await prisma.user.update({
+      where: { id: parseInt(followerId) },
+      data: {
+        following: {
+          connect: { id: targetId }
+        }
+      }
+    });
+    res.json({ message: 'Followed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to follow user' });
+  }
+});
+
+// Unfollow User
+app.post('/users/unfollow/:id', async (req, res) => {
+  const { followerId } = req.body;
+  const targetId = parseInt(req.params.id);
+
+  try {
+    await prisma.user.update({
+      where: { id: parseInt(followerId) },
+      data: {
+        following: {
+          disconnect: { id: targetId }
+        }
+      }
+    });
+    res.json({ message: 'Unfollowed successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to unfollow user' });
+  }
+});
+
+// Get Followers
+app.get('/users/:id/followers', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        followedBy: {
+          select: { id: true, name: true, profilePicture: true }
+        }
+      }
+    });
+    res.json(user?.followedBy || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch followers' });
+  }
+});
+
+// Get Following
+app.get('/users/:id/following', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: parseInt(id) },
+      select: {
+        following: {
+          select: { id: true, name: true, profilePicture: true }
+        }
+      }
+    });
+    res.json(user?.following || []);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch following' });
   }
 });
 
@@ -477,11 +708,32 @@ app.post('/conversations', async (req, res) => {
           { users: { some: { id: userId2 } } }
         ]
       },
-      include: { users: { select: { id: true, name: true } } }
+      include: { 
+        users: { 
+          select: { 
+            id: true, 
+            name: true,
+            profilePicture: true,
+            publicProfile: {
+              select: {
+                profilePicture: true
+              }
+            }
+          } 
+        } 
+      }
     });
 
     if (existing) {
-      return res.json(existing);
+      const mappedExisting = {
+        ...existing,
+        users: existing.users.map((user: any) => ({
+          id: user.id,
+          name: user.name,
+          profilePicture: user.publicProfile?.profilePicture || user.profilePicture || null
+        }))
+      };
+      return res.json(mappedExisting);
     }
 
     // Create new conversation
@@ -491,11 +743,34 @@ app.post('/conversations', async (req, res) => {
           connect: ids.map((id: number) => ({ id }))
         }
       },
-      include: { users: { select: { id: true, name: true } } }
+      include: { 
+        users: { 
+          select: { 
+            id: true, 
+            name: true,
+            profilePicture: true,
+            publicProfile: {
+              select: {
+                profilePicture: true
+              }
+            }
+          } 
+        } 
+      }
     });
     
+    // Map conversation to use publicProfile.profilePicture if available
+    const mappedConversation = {
+      ...conversation,
+      users: conversation.users.map((user: any) => ({
+        id: user.id,
+        name: user.name,
+        profilePicture: user.publicProfile?.profilePicture || user.profilePicture || null
+      }))
+    };
+    
     console.log(`Created conversation ${conversation.id} for users ${ids.join(', ')}`);
-    res.json(conversation);
+    res.json(mappedConversation);
   } catch (error) {
     console.error('Failed to create conversation:', error);
     res.status(500).json({ error: 'Failed to create conversation', details: String(error) });
@@ -511,16 +786,55 @@ app.get('/conversations/user/:userId', async (req, res) => {
         users: { some: { id: parseInt(userId) } }
       },
       include: {
-        users: { select: { id: true, name: true } },
+        users: { 
+          select: { 
+            id: true, 
+            name: true,
+            profilePicture: true,
+            publicProfile: {
+              select: {
+                profilePicture: true
+              }
+            }
+          } 
+        },
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 1,
-          include: { sender: { select: { name: true } } }
+          include: { 
+            sender: { 
+              select: { 
+                name: true,
+                profilePicture: true,
+                publicProfile: {
+                  select: {
+                    profilePicture: true
+                  }
+                }
+              } 
+            } 
+          }
         }
       },
       orderBy: { updatedAt: 'desc' }
     });
-    res.json(conversations);
+    // Map conversations to use publicProfile.profilePicture if available
+    const mappedConversations = conversations.map(conv => ({
+      ...conv,
+      users: conv.users.map((user: any) => ({
+        id: user.id,
+        name: user.name,
+        profilePicture: user.publicProfile?.profilePicture || user.profilePicture || null
+      })),
+      messages: conv.messages?.map((msg: any) => ({
+        ...msg,
+        sender: {
+          name: msg.sender.name || 'User',
+          profilePicture: msg.sender.publicProfile?.profilePicture || msg.sender.profilePicture || null
+        }
+      })) || []
+    }));
+    res.json(mappedConversations);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch conversations' });
   }
@@ -536,9 +850,28 @@ app.post('/messages', async (req, res) => {
         content
       },
       include: {
-        sender: { select: { name: true } }
+        sender: { 
+          select: { 
+            name: true,
+            profilePicture: true,
+            publicProfile: {
+              select: {
+                profilePicture: true
+              }
+            }
+          } 
+        }
       }
     });
+
+    // Map message to use publicProfile.profilePicture if available
+    const mappedMessage = {
+      ...message,
+      sender: {
+        name: message.sender.name || 'User',
+        profilePicture: message.sender.publicProfile?.profilePicture || message.sender.profilePicture || null
+      }
+    };
 
     // Update conversation timestamp
     await prisma.conversation.update({
@@ -547,7 +880,9 @@ app.post('/messages', async (req, res) => {
     });
 
     // Emit socket event
-    io.to(`conversation_${conversationId}`).emit('new_message', message);
+    io.to(`conversation_${conversationId}`).emit('new_message', mappedMessage);
+    
+    res.status(201).json(mappedMessage);
     
     res.status(201).json(message);
   } catch (error) {
@@ -561,9 +896,29 @@ app.get('/messages/:conversationId', async (req, res) => {
     const messages = await prisma.message.findMany({
       where: { conversationId: parseInt(conversationId) },
       orderBy: { createdAt: 'asc' },
-      include: { sender: { select: { name: true } } }
+      include: { 
+        sender: { 
+          select: { 
+            name: true,
+            profilePicture: true,
+            publicProfile: {
+              select: {
+                profilePicture: true
+              }
+            }
+          } 
+        } 
+      }
     });
-    res.json(messages);
+    // Map messages to use publicProfile.profilePicture if available, otherwise use User.profilePicture
+    const mappedMessages = messages.map(msg => ({
+      ...msg,
+      sender: {
+        name: msg.sender.name || 'User',
+        profilePicture: msg.sender.publicProfile?.profilePicture || msg.sender.profilePicture || null
+      }
+    }));
+    res.json(mappedMessages);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch messages' });
   }

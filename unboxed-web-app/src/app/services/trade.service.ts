@@ -138,8 +138,9 @@ export class TradeService {
   }
 
   sendTradeOffer(receiverId: number, targetItemId: number, offeredItemIds: number[]): Observable<any> {
+    const proposerId = this.authService.backendUser()?.id || 1; // Fallback to 1 if not synced yet
     return this.http.post(`${this.apiUrl}/trades`, {
-      proposerId: 1, // Hardcoded for proto
+      proposerId,
       receiverId,
       targetItemId,
       offeredItemIds

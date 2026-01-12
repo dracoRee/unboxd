@@ -2,6 +2,7 @@ import { Component, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TradeItem } from '../../models/trade-item.model';
 import { TradeService } from '../../services/trade.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-trade-card',
@@ -15,17 +16,22 @@ export class TradeCardComponent {
 
   isFavourited = false;
 
-  constructor(private tradeService: TradeService) {}
+  constructor(
+    private tradeService: TradeService,
+    private authService: AuthService
+  ) {}
 
   toggleFavourite(event: Event) {
     event.stopPropagation();
+    const userId = this.authService.backendUser()?.id || 1;
+    
     if (!this.isFavourited) {
-      this.tradeService.addToWishlist(1, parseInt(this.item.item_id)).subscribe({
+      this.tradeService.addToWishlist(userId, parseInt(this.item.item_id)).subscribe({
         next: () => this.isFavourited = true,
         error: (err) => console.error('Failed to wishlist', err)
       });
     } else {
-      this.tradeService.removeFromWishlist(1, parseInt(this.item.item_id)).subscribe({
+      this.tradeService.removeFromWishlist(userId, parseInt(this.item.item_id)).subscribe({
         next: () => this.isFavourited = false,
         error: (err) => console.error('Failed to remove from wishlist', err)
       });

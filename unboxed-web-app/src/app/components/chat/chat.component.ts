@@ -1,13 +1,14 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, OnDestroy, ViewChild, ElementRef, AfterViewChecked } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { MessagingService, ChatMessage } from '../../services/messaging.service';
 import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.css']
 })
@@ -78,7 +79,7 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
       senderId: this.currentUserId,
       content,
       createdAt: new Date().toISOString(),
-      sender: { name: this.senderName }
+      sender: { name: this.senderName, profilePicture: null }
     };
     this.messages.push(tempMsg);
     this.scrollToBottom();

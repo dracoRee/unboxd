@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TradeService } from '../../services/trade.service';
+import { AuthService } from '../../services/auth.service';
 import { ChatComponent } from '../../components/chat/chat.component';
 
 @Component({
@@ -104,22 +105,32 @@ import { ChatComponent } from '../../components/chat/chat.component';
 export class TradesComponent implements OnInit {
   trades: any[] = [];
   activeTab: 'outgoing' | 'incoming' = 'outgoing';
-  userId = 1; // Prototype user
+  userId?: number;
   activeChatTradeId: number | null = null;
 
-  constructor(private tradeService: TradeService) {}
-
-  ngOnInit(): void {
-    this.loadTrades();
+  constructor(
+    private tradeService: TradeService,
+    private authService: AuthService
+  ) {
+    effect(() => {
+      this.userId = this.authService.backendUser()?.id;
+      if (this.userId) {
+        this.loadTrades();
+      }
+    });
   }
 
+  ngOnInit(): void {}
+
   loadTrades() {
+    if (!this.userId) return;
     this.tradeService.getUserTrades(this.userId).subscribe(data => {
       this.trades = data;
     });
   }
 
   get filteredTrades() {
+    if (!this.userId) return [];
     return this.trades.filter(t => 
       this.activeTab === 'outgoing' ? t.proposerId === this.userId : t.receiverId === this.userId
     );

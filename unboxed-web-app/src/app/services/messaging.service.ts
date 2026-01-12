@@ -10,12 +10,12 @@ export interface ChatMessage {
   senderId: number;
   content: string;
   createdAt: string;
-  sender?: { name: string };
+  sender?: { name: string; profilePicture?: string | null };
 }
 
 export interface Conversation {
   id: number;
-  users: { id: number; name: string }[];
+  users: { id: number; name: string; profilePicture?: string | null }[];
   messages?: ChatMessage[];
   updatedAt: string;
   hasUnread?: boolean;

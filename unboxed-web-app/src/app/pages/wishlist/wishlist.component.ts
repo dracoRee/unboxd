@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TradeService } from '../../services/trade.service';
+import { AuthService } from '../../services/auth.service';
 import { TradeItem } from '../../models/trade-item.model';
 
 @Component({
@@ -49,21 +50,31 @@ import { TradeItem } from '../../models/trade-item.model';
 })
 export class WishlistComponent implements OnInit {
   wishlist: TradeItem[] = [];
-  userId = 1;
+  userId?: number;
 
-  constructor(private tradeService: TradeService) {}
-
-  ngOnInit(): void {
-    this.loadWishlist();
+  constructor(
+    private tradeService: TradeService,
+    private authService: AuthService
+  ) {
+    effect(() => {
+      this.userId = this.authService.backendUser()?.id;
+      if (this.userId) {
+        this.loadWishlist();
+      }
+    });
   }
 
+  ngOnInit(): void {}
+
   loadWishlist() {
+    if (!this.userId) return;
     this.tradeService.getWishlist(this.userId).subscribe(items => {
       this.wishlist = items;
     });
   }
 
   removeFromWishlist(collectibleId: string) {
+    if (!this.userId) return;
     this.tradeService.removeFromWishlist(this.userId, parseInt(collectibleId)).subscribe(() => {
       this.loadWishlist();
     });
