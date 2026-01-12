@@ -89,7 +89,11 @@
           (click)="showProfileMenu = !showProfileMenu"
           class="h-8 w-8 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all"
         >
-          <img [src]="'https://api.dicebear.com/7.x/avataaars/svg?seed=' + (authService.currentUser()?.name || 'User')" alt="Avatar" class="w-full h-full object-cover">
+          <img 
+            [src]="authService.currentUser()?.profilePicture || '/default-avatar.png'" 
+            [alt]="authService.currentUser()?.name || 'User avatar'" 
+            class="w-full h-full object-cover"
+          >
         </div>
 
         <!-- Dropdown Menu -->
