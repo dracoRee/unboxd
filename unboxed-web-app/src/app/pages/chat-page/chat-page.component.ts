@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterModule } from '@angular/router';
 import { ChatComponent } from '../../components/chat/chat.component';
 import { MessagingService, Conversation, ChatMessage } from '../../services/messaging.service';
 import { AuthService } from '../../services/auth.service';
@@ -9,7 +10,7 @@ import { Subscription } from 'rxjs';
 @Component({
   selector: 'app-chat-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, ChatComponent],
+  imports: [CommonModule, FormsModule, ChatComponent, RouterModule],
   template: `
     <div class="h-[calc(100vh-64px)] bg-gray-50 flex">
       <!-- Sidebar -->
@@ -47,9 +48,9 @@ import { Subscription } from 'rxjs';
             <div class="max-h-40 overflow-y-auto bg-white rounded-lg border border-gray-100">
               @for (user of searchResults; track user.id) {
                 <button (click)="startChat(user)" class="w-full text-left px-3 py-2 hover:bg-indigo-50 text-sm flex items-center gap-2">
-                  <div class="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-xs font-bold text-indigo-600">
-                    {{ user.name[0] }}
-                  </div>
+                  <img [src]="user.profilePicture || '/default-avatar.png'" 
+                       [alt]="user.name"
+                       class="w-6 h-6 rounded-full object-cover border border-gray-200">
                   {{ user.name }}
                 </button>
               } @empty {
@@ -68,12 +69,14 @@ import { Subscription } from 'rxjs';
                  [class.border-indigo-600]="selectedConversation?.id === conv.id"
                  class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-50 transition-all">
               <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-full flex items-center justify-center text-white font-bold">
-                  {{ getOtherUser(conv).name[0] }}
-                </div>
+                <img [src]="getOtherUser(conv).profilePicture || '/default-avatar.png'" 
+                     [alt]="getOtherUser(conv).name"
+                     [routerLink]="['/profile', getOtherUser(conv).id]" 
+                     (click)="$event.stopPropagation()" 
+                     class="w-10 h-10 rounded-full object-cover cursor-pointer border-2 border-gray-200 hover:border-indigo-500 transition-colors">
                 <div class="flex-1 min-w-0">
                   <div class="flex justify-between items-baseline mb-1">
-                    <h3 class="font-bold truncate text-gray-900">{{ getOtherUser(conv).name }}</h3>
+                    <h3 [routerLink]="['/profile', getOtherUser(conv).id]" (click)="$event.stopPropagation()" class="font-bold truncate text-gray-900 hover:text-indigo-600">{{ getOtherUser(conv).name }}</h3>
                     <span class="text-[10px] text-gray-400 ml-2 whitespace-nowrap">
                       {{ conv.updatedAt | date:'shortTime' }}
                     </span>
@@ -109,11 +112,12 @@ import { Subscription } from 'rxjs';
           <!-- Chat Header -->
           <div class="h-16 border-b border-gray-200 bg-white flex items-center px-6 justify-between">
              <div class="flex items-center gap-3">
-               <div class="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center font-bold text-gray-600">
-                 {{ getOtherUser(selectedConversation).name[0] }}
-               </div>
+               <img [src]="getOtherUser(selectedConversation).profilePicture || '/default-avatar.png'" 
+                    [alt]="getOtherUser(selectedConversation).name"
+                    [routerLink]="['/profile', getOtherUser(selectedConversation).id]" 
+                    class="w-10 h-10 rounded-full object-cover cursor-pointer border-2 border-gray-200 hover:border-indigo-500 transition-colors">
                <div>
-                 <h3 class="font-bold text-lg">{{ getOtherUser(selectedConversation).name }}</h3>
+                 <h3 [routerLink]="['/profile', getOtherUser(selectedConversation).id]" class="font-bold text-lg hover:text-indigo-600 cursor-pointer">{{ getOtherUser(selectedConversation).name }}</h3>
                  <!-- <span class="text-green-500 text-xs flex items-center gap-1">● Online</span> -->
                </div>
              </div>
@@ -123,8 +127,8 @@ import { Subscription } from 'rxjs';
           <div class="flex-1 relative bg-white">
             <app-chat 
               [conversationId]="selectedConversation.id" 
-              [currentUserId]="backendUser.id"
-              [senderName]="backendUser.name || 'Me'"
+              [currentUserId]="backendUser?.id"
+              [senderName]="backendUser?.name || 'Me'"
               (onMessageSent)="handleNewMessage($event)"
               class="absolute inset-0 block">
             </app-chat>
@@ -171,30 +175,17 @@ export class ChatPageComponent implements OnInit, OnDestroy {
     private authService: AuthService
   ) {
     this.currentUser = this.authService.currentUser();
-  }
-
-  ngOnInit() {
-    if (this.currentUser?.email) {
-      this.resolveBackendIdentity();
-    } else {
-        console.warn('No logged in user found via AuthService');
-    }
-  }
-
-  resolveBackendIdentity() {
-    // Extract name from metadata if available, otherwise fallback
-    const name = this.currentUser.user_metadata?.name || this.currentUser.name;
     
-    this.messagingService.syncUser(this.currentUser.email, name).subscribe({
-      next: (user) => {
-        this.backendUser = user;
+    // Watch for backend user changes
+    effect(() => {
+      this.backendUser = this.authService.backendUser();
+      if (this.backendUser) {
         this.loadConversations();
-      },
-      error: (err) => {
-        console.error('Failed to resolve backend identity', err);
       }
     });
   }
+
+  ngOnInit() {}
 
   loadConversations() {
     if (!this.backendUser) return;

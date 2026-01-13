@@ -2,21 +2,25 @@ import { Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, from, map, tap } from 'rxjs';
 import { SupabaseService } from './supabase.service';
+import { UserService } from './user.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   currentUser = signal<any>(null);
+  backendUser = signal<any>(null);
 
   constructor(
     private supabaseService: SupabaseService, 
+    private userService: UserService,
     private router: Router
   ) {
     // 1. Initial Session Check
     this.supabaseService.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         this.currentUser.set(session.user);
+        this.syncWithBackend(session.user);
       }
     });
 
@@ -26,9 +30,22 @@ export class AuthService {
       
       if (session) {
         this.currentUser.set(session.user);
+        this.syncWithBackend(session.user);
       } else {
         this.currentUser.set(null);
+        this.backendUser.set(null);
       }
+    });
+  }
+
+  private syncWithBackend(supabaseUser: any) {
+    const name = supabaseUser.user_metadata?.name || supabaseUser.email.split('@')[0];
+    this.userService.syncUser(supabaseUser.email, name).subscribe({
+      next: (user) => {
+        this.backendUser.set(user);
+        console.log('Backend Identity Resolved:', user);
+      },
+      error: (err) => console.error('Failed to sync with backend:', err)
     });
   }
 

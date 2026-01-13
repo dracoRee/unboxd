@@ -124,4 +124,23 @@ export class SupabaseService {
       return imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     }
   }
+
+  /**
+   * Upload a file to Supabase Storage
+   */
+  async uploadFile(path: string, file: File): Promise<string> {
+    const { data, error } = await this.supabase.storage
+      .from(this.IMAGES_BUCKET)
+      .upload(path, file, {
+        upsert: true,
+        contentType: file.type
+      });
+
+    if (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+
+    return this.getImageUrl(data.path, true);
+  }
 }

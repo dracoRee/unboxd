@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CollectionService } from '../../services/collection.service';
+import { AuthService } from '../../services/auth.service';
 import { SeriesProgress } from '../../models/collection.model';
 
 @Component({
@@ -102,16 +103,25 @@ import { SeriesProgress } from '../../models/collection.model';
 export class MyCollectionComponent implements OnInit {
   collections: SeriesProgress[] = [];
   isScanning = false;
+  userId?: number;
 
-  constructor(private collectionService: CollectionService) {}
-
-  ngOnInit(): void {
-    // Hardcoding user ID for prototype
-    this.refreshCollection();
+  constructor(
+    private collectionService: CollectionService,
+    private authService: AuthService
+  ) {
+    effect(() => {
+      this.userId = this.authService.backendUser()?.id;
+      if (this.userId) {
+        this.refreshCollection();
+      }
+    });
   }
 
+  ngOnInit(): void {}
+
   refreshCollection() {
-    this.collectionService.getUserCollection(1).subscribe(data => {
+    if (!this.userId) return;
+    this.collectionService.getUserCollection(this.userId).subscribe(data => {
       this.collections = data;
     });
   }
@@ -122,14 +132,14 @@ export class MyCollectionComponent implements OnInit {
 
   onFileSelected(event: any) {
     const file = event.target.files[0];
-    if (file) {
+    if (file && this.userId) {
       this.isScanning = true;
       this.collectionService.scanCollectible(file).subscribe({
         next: (result) => {
           this.isScanning = false;
           if (result.dbMatch) {
             alert(`Identified: ${result.dbMatch.name} from ${result.identification.series}!`);
-            this.collectionService.addToCollection(1, result.dbMatch.id).subscribe(() => {
+            this.collectionService.addToCollection(this.userId!, result.dbMatch.id).subscribe(() => {
               this.refreshCollection();
             });
           } else {
@@ -139,14 +149,12 @@ export class MyCollectionComponent implements OnInit {
         error: () => {
           this.isScanning = false;
           alert('Failed to scan. Please try again.');
-          
         }
       });
     }
   }
 
   findMissing(series: SeriesProgress) {
-    // Logic to navigate to Browse with filters for missing items
     console.log('Finding missing items for', series.seriesName);
   }
 }
