@@ -12,10 +12,6 @@ import { TradeService } from '../../services/trade.service';
 export class CategoryTabsComponent {
   categories = [
     'All',
-    'Series',
-    'Characters',
-    'Limited Editions',
-    'Popular Trades',
     'My Collection'
   ];
   

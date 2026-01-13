@@ -55,6 +55,24 @@ export class SupabaseService {
   }
 
   /**
+   * Fetch all series
+   */
+  async getSeries(): Promise<any[]> {
+    console.log('Fetching series from Supabase...');
+    
+    const { data, error } = await this.supabase
+      .from('Series')
+      .select('*');
+
+    if (error) {
+      console.error('Error fetching series:', error);
+      throw error;
+    }
+    
+    return data || [];
+  }
+
+  /**
    * Fetch items filtered by series ID or Name
    */
   async getItemsBySeries(seriesId: number): Promise<any[]> {

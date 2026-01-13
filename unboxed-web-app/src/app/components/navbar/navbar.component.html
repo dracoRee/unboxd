@@ -1,7 +1,7 @@
 <nav *ngIf="authService.isLoggedIn()" class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
   <div class="container mx-auto px-4 h-16 flex items-center justify-between">
     <!-- Logo -->
-    <div class="flex items-center gap-2 cursor-pointer" routerLink="/browse">
+    <div class="flex items-center gap-2 cursor-pointer" routerLink="/browse" (click)="resetFilters()">
       <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">
         U
       </div>
@@ -30,12 +30,23 @@
     <div class="flex items-center gap-4 md:gap-6">
       <button 
         class="p-2 text-black hover:text-indigo-600 transition-colors" 
+        title="Series"
+        routerLink="/series"
+        routerLinkActive="text-indigo-600 bg-indigo-50 rounded-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      </button>
+
+      <button 
+        class="p-2 text-black hover:text-indigo-600 transition-colors" 
         title="My Collection"
         routerLink="/my-collection"
         routerLinkActive="text-indigo-600 bg-indigo-50 rounded-lg"
       >
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
         </svg>
       </button>
 
@@ -62,7 +73,7 @@
         </svg>
       </button>
 
-      <button 
+      <!-- <button 
         class="p-2 text-black hover:text-indigo-600 transition-colors" 
         title="Offers"
         routerLink="/inbox"
@@ -71,7 +82,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
         </svg>
-      </button>
+      </button> -->
 
       <button 
         class="p-2 text-black hover:text-indigo-600 transition-colors" 

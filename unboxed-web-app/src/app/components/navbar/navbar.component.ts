@@ -25,6 +25,10 @@ export class NavbarComponent {
     this.tradeService.updateFilters({ search: this.searchQuery });
   }
 
+  resetFilters() {
+    this.tradeService.resetFilters();
+  }
+
   logout() {
     this.authService.logout();
     this.showProfileMenu = false;

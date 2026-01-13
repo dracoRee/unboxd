@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { TradeService } from '../../services/trade.service';
 
 @Component({
@@ -10,21 +11,46 @@ import { TradeService } from '../../services/trade.service';
   templateUrl: './sidebar-filters.component.html',
   styleUrl: './sidebar-filters.component.css'
 })
-export class SidebarFiltersComponent {
+export class SidebarFiltersComponent implements OnInit {
   selectedSeries: string[] = [];
   selectedRarities: string[] = [];
   maxValue: number = 500;
 
-  constructor(private tradeService: TradeService) {}
+  constructor(
+    private tradeService: TradeService,
+    private route: ActivatedRoute
+  ) {}
 
-  onSeriesChange(seriesName: string, event: any) {
-    if (event.target.checked) {
-      this.selectedSeries.push(seriesName);
-    } else {
-      this.selectedSeries = this.selectedSeries.filter(s => s !== seriesName);
-    }
-    this.updateFilters();
+  ngOnInit() {
+    // 1. Subscribe to global filter changes (e.g. from Reset)
+    this.tradeService.filters$.subscribe(filters => {
+        // We need to map back 'Series Name Series' to 'Series Name' if possible, OR just rely on logic.
+        // The service stores 'Ancient Castle Series' but checkbox uses 'Ancient Castle'.
+        // This mapping logic is a bit fragile (adding/removing ' Series').
+        // Let's assume for now we just clear if empty.
+        if (filters.series === undefined || filters.series.length === 0) {
+            this.selectedSeries = [];
+        }
+        if (filters.rarity === undefined || filters.rarity.length === 0) {
+             this.selectedRarities = [];
+        }
+    });
+
+    // 2. Handle URL query params
+    this.route.queryParams.subscribe(params => {
+      const series = params['series'];
+      if (series) {
+        if (!this.selectedSeries.includes(series)) {
+            this.selectedSeries.push(series);
+            // We do NOT call updateFilters here if we want to avoid loops with the subscription above?
+            // Actually, querying params is an *input*. We *should* push to service.
+            this.updateFilters();
+        }
+      }
+    });
   }
+
+
 
   toggleRarity(rarity: string) {
     if (this.selectedRarities.includes(rarity)) {

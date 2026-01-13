@@ -30,6 +30,7 @@ export class TradeService {
     rarity: [],
     maxValue: 500
   });
+  filters$ = this.filtersSubject.asObservable();
 
   filteredItems$ = combineLatest([this.itemsSubject, this.filtersSubject]).pipe(
     map(([items, filters]) => {
@@ -130,6 +131,16 @@ export class TradeService {
     this.filtersSubject.next({
       ...this.filtersSubject.value,
       ...newFilters
+    });
+  }
+
+  resetFilters() {
+    this.filtersSubject.next({
+      search: '',
+      category: 'All',
+      series: [],
+      rarity: [],
+      maxValue: 500
     });
   }
 
