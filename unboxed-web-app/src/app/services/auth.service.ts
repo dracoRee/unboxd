@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, from, map, tap } from 'rxjs';
 import { SupabaseService } from './supabase.service';
@@ -10,11 +11,13 @@ import { UserService } from './user.service';
 export class AuthService {
   currentUser = signal<any>(null);
   backendUser = signal<any>(null);
+  private apiUrl = 'http://localhost:3000';
 
   constructor(
     private supabaseService: SupabaseService, 
     private userService: UserService,
-    private router: Router
+    private router: Router,
+    private http: HttpClient
   ) {
     // 1. Initial Session Check
     this.supabaseService.auth.getSession().then(({ data: { session } }) => {
@@ -86,11 +89,11 @@ export class AuthService {
   }
 
   forgotPassword(email: string): Observable<any> {
-    return from(this.supabaseService.auth.resetPasswordForEmail(email));
+    return this.http.post(`${this.apiUrl}/auth/forgot-password`, { email });
   }
 
   resetPassword(data: any): Observable<any> {
-    return from(this.supabaseService.auth.updateUser({ password: data.password }));
+    return this.http.post(`${this.apiUrl}/auth/reset-password`, data);
   }
 
   isLoggedIn(): boolean {

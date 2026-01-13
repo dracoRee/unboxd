@@ -13,7 +13,7 @@ import { AuthService } from '../../services/auth.service';
 })
 export class LoginComponent {
   email = 'timothyzjtan@gmail.com';
-  password = '123123';
+  password = '123123123';
   error = signal('');
   loading = signal(false);
 

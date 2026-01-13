@@ -8,10 +8,22 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import { identifyCollectible } from './services/ai.service.js';
+import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
 
 const upload = multer({ storage: multer.memoryStorage() });
+
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL || '',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
+);
 
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -102,10 +114,15 @@ io.on('connection', (socket) => {
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
   port: parseInt(process.env.SMTP_PORT || '587'),
+  secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports (like 587)
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  tls: {
+    ciphers: 'SSLv3',
+    rejectUnauthorized: false
+  }
 });
 
 // Register
@@ -200,10 +217,14 @@ app.post('/auth/forgot-password', async (req, res) => {
       html: `<p>Click <a href="${resetLink}">here</a> to reset your password.</p>`,
     });
 
+    console.log(`Reset email sent successfully to ${email}`);
     res.json({ message: 'Reset link sent' });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Failed to send reset email' });
+    console.error('Forgot Password Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to send reset email',
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined 
+    });
   }
 });
 
@@ -222,6 +243,29 @@ app.post('/auth/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'Invalid or expired token' });
     }
 
+    // 1. Update Supabase Auth Password
+    // We search for the user by email to get their Supabase UID
+    const { data: { users }, error: listError } = await supabaseAdmin.auth.admin.listUsers();
+    if (listError) {
+      console.error('Supabase Auth List Error:', listError);
+    } else {
+      const supabaseUser = users.find(u => u.email === user.email);
+      if (supabaseUser) {
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+          supabaseUser.id,
+          { password: newPassword }
+        );
+        if (updateError) {
+          console.error('Supabase Auth Update Error:', updateError);
+        } else {
+          console.log(`Supabase Auth password updated for ${user.email}`);
+        }
+      } else {
+        console.warn(`User ${user.email} not found in Supabase Auth`);
+      }
+    }
+
+    // 2. Update local DB
     const hashedPassword = await argon2.hash(newPassword);
     await prisma.user.update({
       where: { id: user.id },
@@ -234,7 +278,11 @@ app.post('/auth/reset-password', async (req, res) => {
 
     res.json({ message: 'Password reset successful' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Reset Password Error:', error);
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined
+    });
   }
 });
 
