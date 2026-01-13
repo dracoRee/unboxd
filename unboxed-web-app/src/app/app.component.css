@@ -9,4 +9,7 @@
   padding-top: 1.8vh;
   flex: 1;
   min-height: 100vh; /* footer stays at the bottom */
-}
+} /* .content {
+  padding-top: 1.8vh;
+  flex: 1;
+  min-height: 100vh */
