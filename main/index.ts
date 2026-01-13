@@ -52,7 +52,7 @@ io.on('connection', (socket) => {
     // Fetch sender profile picture from PublicUser
     let profilePicture = null;
     try {
-      const sender = await prisma.publicUser.findUnique({
+      const sender = await prisma.PublicUser.findUnique({
         where: { id: parseInt(senderId) },
         select: { profilePicture: true }
       });
@@ -114,21 +114,20 @@ app.post('/auth/register', async (req, res) => {
   try {
     const hashedPassword = await argon2.hash(password);
     
-    // Create user and publicUser in a transaction
+    // Create user and PublicUser in a transaction
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
           email,
           password: hashedPassword,
-          name,
         },
       });
 
-      // Create publicUser entry
-      await tx.publicUser.create({
+      // Create PublicUser entry
+      await tx.PublicUser.create({
         data: {
           id: newUser.id,
-          name: newUser.name || 'User',
+          name: name || 'User',
           bio: null,
           profilePicture: null
         }
@@ -150,7 +149,10 @@ app.post('/auth/register', async (req, res) => {
 app.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ 
+      where: { email },
+      include: { publicUser: true }
+    });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -161,7 +163,7 @@ app.post('/auth/login', async (req, res) => {
     }
 
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.publicUser?.name } });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
@@ -331,11 +333,27 @@ app.post('/trades', async (req, res) => {
       include: {
         offeredItems: { include: { collectible: true } },
         targetItem: true,
-        proposer: { select: { name: true, email: true } },
-        receiver: { select: { name: true, email: true } }
+        proposer: { 
+          select: { 
+            email: true,
+            publicUser: { select: { name: true } }
+          } 
+        },
+        receiver: { 
+          select: { 
+            email: true,
+            publicUser: { select: { name: true } }
+          } 
+        }
       }
     });
-    res.status(201).json(trade);
+
+    const mappedTrade = {
+      ...trade,
+      proposer: { ...trade.proposer, name: trade.proposer.publicUser?.name || 'User' },
+      receiver: { ...trade.receiver, name: trade.receiver.publicUser?.name || 'User' }
+    };
+    res.status(201).json(mappedTrade);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to propose trade' });
@@ -353,13 +371,30 @@ app.get('/trades/:userId', async (req, res) => {
       include: {
         offeredItems: { include: { collectible: true } },
         targetItem: true,
-        proposer: { select: { id: true, name: true } },
-        receiver: { select: { id: true, name: true } },
+        proposer: { 
+          select: { 
+            id: true,
+            publicUser: { select: { name: true } }
+          } 
+        },
+        receiver: { 
+          select: { 
+            id: true,
+            publicUser: { select: { name: true } }
+          } 
+        },
         messages: { orderBy: { createdAt: 'asc' } }
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.json(trades);
+    
+    const mappedTrades = trades.map((t: any) => ({
+      ...t,
+      proposer: { id: t.proposer.id, name: t.proposer.publicUser?.name || 'User' },
+      receiver: { id: t.receiver.id, name: t.receiver.publicUser?.name || 'User' }
+    }));
+    
+    res.json(mappedTrades);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch trades' });
   }
@@ -440,38 +475,43 @@ app.post('/users/sync', async (req, res) => {
   try {
     let user = await prisma.user.findUnique({
       where: { email },
-      select: { id: true, name: true, email: true }
+      include: { publicUser: true }
     });
 
     if (!user) {
-      // Create user and publicUser in a transaction
+      // Create user and PublicUser in a transaction
       const result = await prisma.$transaction(async (tx) => {
         const newUser = await tx.user.create({
           data: {
             email,
-            name: name || email.split('@')[0],
             password: 'SUPABASE_AUTH_USER' // Placeholder
           },
-          select: { id: true, name: true, email: true }
         });
 
-        // Create publicUser entry
-        await tx.publicUser.create({
+        // Create PublicUser entry
+        await tx.PublicUser.create({
           data: {
             id: newUser.id,
-            name: newUser.name || 'User',
+            name: name || email.split('@')[0] || 'User',
             bio: null,
             profilePicture: null
           }
         });
 
-        return newUser;
+        return await tx.user.findUnique({
+          where: { id: newUser.id },
+          include: { publicUser: true }
+        });
       });
 
       user = result;
     }
     
-    res.json(user);
+    res.json({
+      id: user?.id,
+      email: user?.email,
+      name: user?.publicUser?.name
+    });
   } catch (error) {
     console.error('Sync failed:', error);
     res.status(500).json({ error: 'Sync failed' });
@@ -484,7 +524,7 @@ app.get('/users/search', async (req, res) => {
   if (!q || typeof q !== 'string') return res.json([]);
   
   try {
-    const publicUsers = await prisma.publicUser.findMany({
+    const PublicUsers = await prisma.PublicUser.findMany({
       where: {
         name: { contains: q, mode: 'insensitive' }
       },
@@ -499,7 +539,7 @@ app.get('/users/search', async (req, res) => {
     });
     
     // Transform to match expected format
-    const users = publicUsers.map(pu => ({
+    const users = PublicUsers.map(pu => ({
       id: pu.id,
       name: pu.name,
       email: pu.user.email,
@@ -521,8 +561,8 @@ app.get('/users/profile/:id', async (req, res) => {
     const userId = parseInt(id);
     if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
 
-    // Read from publicUser table
-    const publicUser = await prisma.publicUser.findUnique({
+    // Read from PublicUser table
+    const PublicUser = await prisma.PublicUser.findUnique({
       where: { id: userId },
       select: {
         name: true,
@@ -548,19 +588,19 @@ app.get('/users/profile/:id', async (req, res) => {
       }
     });
 
-    if (!publicUser) return res.status(404).json({ error: 'User not found' });
+    if (!PublicUser) return res.status(404).json({ error: 'User not found' });
 
     // Flatten following status for the UI
-    const isFollowing = currentUserId ? (publicUser.user as any).followedBy?.length > 0 : false;
+    const isFollowing = currentUserId ? (PublicUser.user as any).followedBy?.length > 0 : false;
     
     // Construct response matching the expected format
     const response = {
-      id: publicUser.user.id,
-      name: publicUser.name,
-      email: publicUser.user.email,
-      bio: publicUser.bio,
-      profilePicture: publicUser.profilePicture,
-      _count: publicUser.user._count,
+      id: PublicUser.user.id,
+      name: PublicUser.name,
+      email: PublicUser.user.email,
+      bio: PublicUser.bio,
+      profilePicture: PublicUser.profilePicture,
+      _count: PublicUser.user._count,
       isFollowing
     };
 
@@ -575,16 +615,10 @@ app.get('/users/profile/:id', async (req, res) => {
 app.patch('/users/profile', async (req, res) => {
   const { userId, name, bio, profilePicture } = req.body;
   try {
-    // Update both user and publicUser tables in a transaction
+    // Update both user and PublicUser tables in a transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Update user table
-      await tx.user.update({
-        where: { id: parseInt(userId) },
-        data: { name, bio, profilePicture }
-      });
-
-      // Update publicUser table
-      const publicUser = await tx.publicUser.upsert({
+      // Update PublicUser table
+      const PublicUser = await tx.PublicUser.upsert({
         where: { id: parseInt(userId) },
         update: { name, bio, profilePicture },
         create: { 
@@ -596,7 +630,7 @@ app.patch('/users/profile', async (req, res) => {
         select: { id: true, name: true, bio: true, profilePicture: true }
       });
 
-      return publicUser;
+      return PublicUser;
     });
 
     res.json({ ...result, id: parseInt(userId) });
@@ -654,11 +688,23 @@ app.get('/users/:id/followers', async (req, res) => {
       where: { id: parseInt(id) },
       select: {
         followedBy: {
-          select: { id: true, name: true, profilePicture: true }
+          select: { 
+            id: true, 
+            publicUser: {
+              select: { name: true, profilePicture: true }
+            }
+          }
         }
       }
     });
-    res.json(user?.followedBy || []);
+
+    const followers = user?.followedBy.map((f: any) => ({
+      id: f.id,
+      name: f.publicUser?.name || 'User',
+      profilePicture: f.publicUser?.profilePicture || null
+    })) || [];
+
+    res.json(followers);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch followers' });
   }
@@ -672,11 +718,23 @@ app.get('/users/:id/following', async (req, res) => {
       where: { id: parseInt(id) },
       select: {
         following: {
-          select: { id: true, name: true, profilePicture: true }
+          select: { 
+            id: true, 
+            publicUser: {
+              select: { name: true, profilePicture: true }
+            }
+          }
         }
       }
     });
-    res.json(user?.following || []);
+
+    const following = user?.following.map((f: any) => ({
+      id: f.id,
+      name: f.publicUser?.name || 'User',
+      profilePicture: f.publicUser?.profilePicture || null
+    })) || [];
+
+    res.json(following);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch following' });
   }
@@ -712,10 +770,9 @@ app.post('/conversations', async (req, res) => {
         users: { 
           select: { 
             id: true, 
-            name: true,
-            profilePicture: true,
-            publicProfile: {
+            publicUser: {
               select: {
+                name: true,
                 profilePicture: true
               }
             }
@@ -729,8 +786,8 @@ app.post('/conversations', async (req, res) => {
         ...existing,
         users: existing.users.map((user: any) => ({
           id: user.id,
-          name: user.name,
-          profilePicture: user.publicProfile?.profilePicture || user.profilePicture || null
+          name: user.publicUser?.name || 'User',
+          profilePicture: user.publicUser?.profilePicture || null
         }))
       };
       return res.json(mappedExisting);
@@ -747,10 +804,9 @@ app.post('/conversations', async (req, res) => {
         users: { 
           select: { 
             id: true, 
-            name: true,
-            profilePicture: true,
-            publicProfile: {
+            publicUser: {
               select: {
+                name: true,
                 profilePicture: true
               }
             }
@@ -759,13 +815,13 @@ app.post('/conversations', async (req, res) => {
       }
     });
     
-    // Map conversation to use publicProfile.profilePicture if available
+    // Map conversation to use publicUser details if available
     const mappedConversation = {
       ...conversation,
       users: conversation.users.map((user: any) => ({
         id: user.id,
-        name: user.name,
-        profilePicture: user.publicProfile?.profilePicture || user.profilePicture || null
+        name: user.publicUser?.name || 'User',
+        profilePicture: user.publicUser?.profilePicture || null
       }))
     };
     
@@ -789,10 +845,9 @@ app.get('/conversations/user/:userId', async (req, res) => {
         users: { 
           select: { 
             id: true, 
-            name: true,
-            profilePicture: true,
-            publicProfile: {
+            publicUser: {
               select: {
+                name: true,
                 profilePicture: true
               }
             }
@@ -804,10 +859,9 @@ app.get('/conversations/user/:userId', async (req, res) => {
           include: { 
             sender: { 
               select: { 
-                name: true,
-                profilePicture: true,
-                publicProfile: {
+                publicUser: {
                   select: {
+                    name: true,
                     profilePicture: true
                   }
                 }
@@ -818,24 +872,25 @@ app.get('/conversations/user/:userId', async (req, res) => {
       },
       orderBy: { updatedAt: 'desc' }
     });
-    // Map conversations to use publicProfile.profilePicture if available
+    // Map conversations to use publicUser details if available
     const mappedConversations = conversations.map(conv => ({
       ...conv,
       users: conv.users.map((user: any) => ({
         id: user.id,
-        name: user.name,
-        profilePicture: user.publicProfile?.profilePicture || user.profilePicture || null
+        name: user.publicUser?.name || 'User',
+        profilePicture: user.publicUser?.profilePicture || null
       })),
       messages: conv.messages?.map((msg: any) => ({
         ...msg,
         sender: {
-          name: msg.sender.name || 'User',
-          profilePicture: msg.sender.publicProfile?.profilePicture || msg.sender.profilePicture || null
+          name: msg.sender.publicUser?.name || 'User',
+          profilePicture: msg.sender.publicUser?.profilePicture || null
         }
       })) || []
     }));
     res.json(mappedConversations);
   } catch (error) {
+    console.error('Error fetching conversations:', error);
     res.status(500).json({ error: 'Failed to fetch conversations' });
   }
 });
@@ -852,10 +907,9 @@ app.post('/messages', async (req, res) => {
       include: {
         sender: { 
           select: { 
-            name: true,
-            profilePicture: true,
-            publicProfile: {
+            publicUser: {
               select: {
+                name: true,
                 profilePicture: true
               }
             }
@@ -864,12 +918,12 @@ app.post('/messages', async (req, res) => {
       }
     });
 
-    // Map message to use publicProfile.profilePicture if available
+    // Map message to use publicUser details if available
     const mappedMessage = {
       ...message,
       sender: {
-        name: message.sender.name || 'User',
-        profilePicture: message.sender.publicProfile?.profilePicture || message.sender.profilePicture || null
+        name: message.sender.publicUser?.name || 'User',
+        profilePicture: message.sender.publicUser?.profilePicture || null
       }
     };
 
@@ -899,10 +953,9 @@ app.get('/messages/:conversationId', async (req, res) => {
       include: { 
         sender: { 
           select: { 
-            name: true,
-            profilePicture: true,
-            publicProfile: {
+            publicUser: {
               select: {
+                name: true,
                 profilePicture: true
               }
             }
@@ -910,12 +963,12 @@ app.get('/messages/:conversationId', async (req, res) => {
         } 
       }
     });
-    // Map messages to use publicProfile.profilePicture if available, otherwise use User.profilePicture
+    // Map messages to use publicUser details if available
     const mappedMessages = messages.map(msg => ({
       ...msg,
       sender: {
-        name: msg.sender.name || 'User',
-        profilePicture: msg.sender.publicProfile?.profilePicture || msg.sender.profilePicture || null
+        name: msg.sender.publicUser?.name || 'User',
+        profilePicture: msg.sender.publicUser?.profilePicture || null
       }
     }));
     res.json(mappedMessages);

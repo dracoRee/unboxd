@@ -19,10 +19,7 @@ datasource db {
 model User {
   id               Int               @id @default(autoincrement())
   email            String            @unique
-  name             String?
   password         String
-  bio              String?
-  profilePicture   String?
   resetToken       String?
   resetTokenExpiry DateTime?
   collection       UserCollectible[]
@@ -33,7 +30,7 @@ model User {
   following        User[]            @relation("UserFollows")
   followedBy       User[]            @relation("UserFollows")
   userConversations Conversation[]
-  publicProfile    PublicUser?
+  publicUser       PublicUser?
 }
 
 model PublicUser {
