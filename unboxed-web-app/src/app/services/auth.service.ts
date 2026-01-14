@@ -81,6 +81,19 @@ export class AuthService {
     );
   }
 
+  loginWithGoogle(): Observable<any> {
+    return from(this.supabaseService.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + '/browse'
+      }
+    })).pipe(
+      tap(({ data, error }) => {
+        if (error) throw error;
+      })
+    );
+  }
+
   logout() {
     this.supabaseService.auth.signOut().then(() => {
       this.currentUser.set(null);

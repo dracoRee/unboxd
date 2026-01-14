@@ -1,3 +1,16 @@
+.logo-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 2.1vh;
+}
+
+.logo-area img {
+  height: 7.8vh;
+  padding-bottom: 1.25vh;
+  width: auto;
+}
+
 .login-container {
   min-height: 100vh;
   display: flex;
@@ -21,12 +34,12 @@
   flex-direction: column;
 }
 
-.logo {
+/* .logo {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 32px;
-}
+} */
 
 .u-box {
   background: #5d5fef;
@@ -155,6 +168,58 @@ input:focus {
   color: #5d5fef;
   text-decoration: none;
   font-weight: 600;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 24px 0;
+  color: #999;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #eee;
+}
+
+.divider span {
+  padding: 0 12px;
+  font-size: 14px;
+}
+
+.btn-google {
+  width: 100%;
+  padding: 12px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  color: #333;
+  font-weight: 600;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-google:hover {
+  background: #f8f9fa;
+  border-color: #ccc;
+}
+
+.btn-google img {
+  width: 18px;
+  height: 18px;
+}
+
+.btn-google:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .loader {

@@ -1,9 +1,7 @@
 <div class="login-container">
   <div class="auth-card glass">
-    <div class="logo">
-      <span class="u-box">U</span>
-      <h1>unboxed.</h1>
-    </div>
+
+      <span class="logo-area"><img src="logo-banner.PNG" alt="unboxed logo"></span>
     
     <h2>Welcome Back</h2>
     <p class="subtitle">Sign in to continue trading</p>
@@ -50,6 +48,15 @@
         } @else {
           Sign In
         }
+      </button>
+
+      <div class="divider">
+        <span>or</span>
+      </div>
+
+      <button type="button" (click)="loginWithGoogle()" class="btn-google" [disabled]="loading()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
+        Continue with Google
       </button>
     </form>
 

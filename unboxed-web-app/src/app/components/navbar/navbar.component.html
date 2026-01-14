@@ -1,11 +1,8 @@
 <nav *ngIf="authService.isLoggedIn()" class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
   <div class="container mx-auto px-4 h-16 flex items-center justify-between">
     <!-- Logo -->
-    <div class="flex items-center gap-2 cursor-pointer" routerLink="/browse" (click)="resetFilters()">
-      <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold">
-        U
-      </div>
-      <span class="text-xl font-bold tracking-tight text-black">unboxed.</span>
+    <div class="flex items-center gap-4 cursor-pointer pl-4" routerLink="/browse">
+      <span class="logo-area"><img src="logo-banner.PNG" alt="unboxed logo"></span>
     </div>
 
     <!-- Search Bar -->

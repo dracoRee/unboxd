@@ -210,7 +210,7 @@ app.post('/auth/forgot-password', async (req, res) => {
     const resetLink = `${FRONTEND_URL}/reset-password?token=${token}`;
 
     await transporter.sendMail({
-      from: '"Unboxed Auth" <noreply@unboxed.com>',
+      from: '"Unboxed Auth" <noreply@unboxd.com>',
       to: email,
       subject: 'Password Reset',
       text: `Click here to reset your password: ${resetLink}`,

@@ -1,0 +1,10 @@
+.logo-area {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.logo-area img {
+  height: 2rem;
+  width: auto;
+}

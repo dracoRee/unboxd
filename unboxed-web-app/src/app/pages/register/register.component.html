@@ -2,7 +2,7 @@
   <div class="auth-card glass">
     <div class="logo">
       <span class="u-box">U</span>
-      <h1>unboxed.</h1>
+      <h1>unboxd.</h1>
     </div>
     
     <h2>Create Account</h2>
@@ -89,6 +89,15 @@
         } @else {
           Create Account
         }
+      </button>
+
+      <div class="divider">
+        <span>or</span>
+      </div>
+
+      <button type="button" (click)="loginWithGoogle()" class="btn-google" [disabled]="loading()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google logo">
+        Sign up with Google
       </button>
     </form>
 

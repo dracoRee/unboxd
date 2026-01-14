@@ -32,4 +32,14 @@ export class LoginComponent {
       }
     });
   }
+
+  loginWithGoogle() {
+    this.loading.set(true);
+    this.authService.loginWithGoogle().subscribe({
+      error: (err) => {
+        this.error.set(err.message || 'Google login failed');
+        this.loading.set(false);
+      }
+    });
+  }
 }
