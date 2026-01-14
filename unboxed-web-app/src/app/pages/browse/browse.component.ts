@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CategoryTabsComponent } from '../../components/category-tabs/category-tabs.component';
+// import { CategoryTabsComponent } from '../../components/category-tabs/category-tabs.component';
 import { SidebarFiltersComponent } from '../../components/sidebar-filters/sidebar-filters.component';
 import { TradeGridComponent } from '../../components/trade-grid/trade-grid.component';
 
@@ -9,7 +9,7 @@ import { TradeGridComponent } from '../../components/trade-grid/trade-grid.compo
   standalone: true,
   imports: [
     CommonModule,
-    CategoryTabsComponent,
+    // CategoryTabsComponent,
     SidebarFiltersComponent,
     TradeGridComponent
   ],

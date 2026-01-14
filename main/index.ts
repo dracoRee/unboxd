@@ -558,7 +558,11 @@ app.post('/users/sync', async (req, res) => {
     res.json({
       id: user?.id,
       email: user?.email,
-      name: user?.publicUser?.name
+      name: user?.publicUser?.name,
+      // Expose public profile data from the PublicUser table so the frontend
+      // (e.g. navbar avatar) can render from the public profile source of truth.
+      profilePicture: user?.publicUser?.profilePicture,
+      bio: user?.publicUser?.bio ?? null
     });
   } catch (error) {
     console.error('Sync failed:', error);

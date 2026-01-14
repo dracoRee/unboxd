@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { CollectionService } from '../../services/collection.service';
 import { AuthService } from '../../services/auth.service';
 import { SeriesProgress } from '../../models/collection.model';
+// import { CategoryTabsComponent } from '../../components/category-tabs/category-tabs.component';
 
 @Component({
   selector: 'app-my-collection',
@@ -10,6 +11,7 @@ import { SeriesProgress } from '../../models/collection.model';
   imports: [CommonModule],
   template: `
     <div class="container mx-auto px-4 py-8">
+
       <div class="flex justify-between items-center mb-8">
         <div>
           <h1 class="text-3xl font-bold bg-gradient-to-r from-primary-600 to-accent-500 bg-clip-text text-transparent">My Collection</h1>

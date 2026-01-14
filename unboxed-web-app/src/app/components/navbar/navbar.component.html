@@ -73,6 +73,7 @@
         </svg>
       </button>
 
+      <!-- old inbox button-->
       <!-- <button 
         class="p-2 text-black hover:text-indigo-600 transition-colors" 
         title="Offers"
@@ -101,8 +102,8 @@
           class="h-8 w-8 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all"
         >
           <img 
-            [src]="authService.currentUser()?.profilePicture || '/default-avatar.png'" 
-            [alt]="authService.currentUser()?.name || 'User avatar'" 
+            [src]="authService.backendUser()?.profilePicture || '/default-avatar.png'" 
+            [alt]="authService.backendUser()?.name || 'User avatar'" 
             class="w-full h-full object-cover"
           >
         </div>
