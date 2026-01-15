@@ -20,7 +20,15 @@
           <div [routerLink]="['/profile', msg.senderId]" class="text-xs opacity-75 mb-1 hover:text-indigo-600 cursor-pointer" *ngIf="msg.senderId !== currentUserId">
             {{ msg.sender?.name || 'User ' + msg.senderId }}
           </div>
-          <div>{{ msg.content }}</div>
+          @if (msg.imageUrl) {
+            <img [src]="msg.imageUrl" 
+                 alt="Shared image" 
+                 class="w-64 h-40 object-cover rounded-lg"
+                 (click)="openImage(msg.imageUrl!)">
+          }
+          @if (msg.content) {
+            <div>{{ msg.content }}</div>
+          }
           <div class="text-[0.6rem] opacity-75 text-right mt-1">
             {{ msg.createdAt | date:'shortTime' }}
           </div>
@@ -35,17 +43,47 @@
 
   <!-- Input -->
   <div class="input-area bg-white">
-    <input type="text" 
-           [(ngModel)]="newMessage" 
-           (keyup.enter)="sendMessage()"
-           placeholder="Type a message..."
-           class="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500">
-    <button (click)="sendMessage()" 
-            [disabled]="!newMessage.trim()"
-            class="bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-      </svg>
-    </button>
+    @if (imagePreview) {
+      <div class="relative inline-block mb-2 mx-4">
+        <img [src]="imagePreview" alt="Preview" class="max-h-32 rounded-lg border border-gray-300">
+        <button (click)="removeImage()" 
+                class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    }
+    <div class="flex items-center gap-2">
+      <label class="cursor-pointer bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-colors">
+        <input type="file" 
+               accept="image/*" 
+               (change)="onImageSelected($event)"
+               class="hidden">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
+        </svg>
+      </label>
+      <input type="text" 
+             [(ngModel)]="newMessage" 
+             (keyup.enter)="sendMessage()"
+             placeholder="Type a message..."
+             [disabled]="isUploading"
+             class="flex-1 px-4 py-2 border rounded-full focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:opacity-50">
+      <button (click)="sendMessage()" 
+              [disabled]="(!newMessage.trim() && !selectedImage) || isUploading"
+              class="bg-indigo-600 text-white p-2 rounded-full hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+        @if (isUploading) {
+          <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        } @else {
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        }
+      </button>
+    </div>
   </div>
 </div>

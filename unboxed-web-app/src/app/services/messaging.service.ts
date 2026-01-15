@@ -9,6 +9,7 @@ export interface ChatMessage {
   tradeId?: number;
   senderId: number;
   content: string;
+  imageUrl?: string | null;
   createdAt: string;
   sender?: { name: string; profilePicture?: string | null };
 }
@@ -69,11 +70,17 @@ export class MessagingService {
     return this.http.get<ChatMessage[]>(`${this.apiUrl}/messages/${conversationId}`);
   }
 
-  sendMessage(conversationId: number, senderId: number, content: string): Observable<ChatMessage> {
-    return this.http.post<ChatMessage>(`${this.apiUrl}/messages`, { conversationId, senderId, content });
+  sendMessage(conversationId: number, senderId: number, content: string, imageUrl?: string): Observable<ChatMessage> {
+    return this.http.post<ChatMessage>(`${this.apiUrl}/messages`, { conversationId, senderId, content, imageUrl });
   }
 
-  sendMessageSocket(conversationId: number, senderId: number, content: string, senderName: string) {
-    this.socket.emit('send_message', { conversationId, senderId, content, senderName });
+  sendMessageSocket(conversationId: number, senderId: number, content: string, senderName: string, imageUrl?: string) {
+    this.socket.emit('send_message', { conversationId, senderId, content, senderName, imageUrl });
+  }
+
+  uploadImage(image: File): Observable<any> {
+    const formData = new FormData();
+    formData.append('image', image);
+    return this.http.post<any>(`${this.apiUrl}/upload`, formData);
   }
 }

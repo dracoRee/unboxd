@@ -59,7 +59,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', async (data) => {
-    const { conversationId, senderId, content, senderName } = data;
+    const { conversationId, senderId, content, senderName, imageUrl } = data;
     
     // Fetch sender profile picture from PublicUser
     let profilePicture = null;
@@ -78,6 +78,7 @@ io.on('connection', (socket) => {
       conversationId: parseInt(conversationId),
       senderId: parseInt(senderId),
       content,
+      imageUrl: imageUrl || null,
       createdAt: new Date().toISOString(),
       sender: { name: senderName || 'User', profilePicture }
     };
@@ -94,7 +95,8 @@ io.on('connection', (socket) => {
         data: {
           conversationId: parseInt(conversationId),
           senderId: parseInt(senderId),
-          content
+          content,
+          imageUrl: imageUrl || null
         }
       });
       await prisma.conversation.update({
@@ -1018,13 +1020,14 @@ app.get('/conversations/user/:userId', async (req, res) => {
 });
 
 app.post('/messages', async (req, res) => {
-  const { conversationId, senderId, content } = req.body;
+  const { conversationId, senderId, content, imageUrl } = req.body;
   try {
     const message = await prisma.message.create({
       data: {
         conversationId: parseInt(conversationId),
         senderId: parseInt(senderId),
-        content
+        content,
+        imageUrl: imageUrl || null
       },
       include: {
         sender: { 
@@ -1059,8 +1062,6 @@ app.post('/messages', async (req, res) => {
     io.to(`conversation_${conversationId}`).emit('new_message', mappedMessage);
     
     res.status(201).json(mappedMessage);
-    
-    res.status(201).json(message);
   } catch (error) {
     res.status(500).json({ error: 'Failed to send message' });
   }

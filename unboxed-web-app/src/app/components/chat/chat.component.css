@@ -64,5 +64,13 @@
     padding: 1rem;
     border-top: 1px solid #e5e7eb;
     display: flex;
+    flex-direction: column;
     gap: 0.5rem;
+}
+
+.message img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    display: block;
 }
