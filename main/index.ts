@@ -288,6 +288,8 @@ app.post('/auth/forgot-password', async (req, res) => {
 
     const resetLink = `${FRONTEND_URL}/reset-password?token=${token}`;
 
+    console.log(`[Development] Reset Link: ${resetLink}`); // Log link for testing without email
+
     await transporter.sendMail({
       from: '"Unboxed Auth" <noreply@unboxd.com>',
       to: email,
