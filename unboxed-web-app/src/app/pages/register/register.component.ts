@@ -68,12 +68,16 @@ export class RegisterComponent {
 
     this.loading.set(true);
     this.error.set('');
-    this.authService.register({ name: this.name, email: this.email, password: this.password }).subscribe({
+    this.authService.register({ 
+      email: this.email, 
+      password: this.password,
+      name: this.name 
+    }).subscribe({
       next: () => {
         this.router.navigate(['/login'], { queryParams: { registered: true } });
       },
       error: (err) => {
-        this.error.set(err.message || 'Registration failed');
+        this.error.set(err.error?.error || err.message || 'Registration failed');
         this.loading.set(false);
       }
     });

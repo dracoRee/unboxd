@@ -19,6 +19,7 @@ export class AuthService {
     private router: Router,
     private http: HttpClient
   ) {
+
     // 1. Initial Session Check
     this.supabaseService.auth.getSession().then(({ data: { session } }) => {
       if (session) {
@@ -52,20 +53,12 @@ export class AuthService {
     });
   }
 
-  register(data: any): Observable<any> {
-    return from(this.supabaseService.auth.signUp({
-      email: data.email,
-      password: data.password,
-      options: {
-        data: {
-          name: data.name
-        }
-      }
-    })).pipe(
-      tap(({ data, error }) => {
-        if (error) throw error;
-      })
-    );
+  /**
+   * Registers a new user with email, password, and name.
+   * @param credentials - User's email, password, and name.
+   */
+  register(credentials: { email: string; password: string; name: string }): Observable<any> {
+    return this.http.post(`${this.apiUrl}/auth/register`, credentials);
   }
 
   login(credentials: any): Observable<any> {

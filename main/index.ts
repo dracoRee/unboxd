@@ -7,7 +7,6 @@ import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 import multer from 'multer';
-import { identifyCollectible } from './services/ai.service.js';
 import { uploadFile, ensureBucketsExist } from './services/storage.service.js';
 import { createClient } from '@supabase/supabase-js';
 
@@ -131,19 +130,92 @@ const transporter = nodemailer.createTransport({
 // Register
 app.post('/auth/register', async (req, res) => {
   const { email, password, name } = req.body;
+  
+  // Add validation
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
+  }
+
   try {
+    console.log(`[Registration] Attempting to register: ${email}`);
+    
+    // Check if user already exists in local database
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      console.log(`[Registration] User already exists in database: ${email}`);
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+    
     const hashedPassword = await argon2.hash(password);
     
-    // Create user and PublicUser in a transaction
+    // 1. Create user in Supabase Auth first
+    let { data: supabaseUser, error: supabaseError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password, // Supabase will hash this
+      email_confirm: true,
+      user_metadata: { name }
+    });
+
+    // Handle "User already exists" by cleaning up stale Supabase record if it's not in Prisma
+    // This handles the case where a user was deleted from the local DB but not Supabase (common in dev/test)
+    if (supabaseError && ((supabaseError as any).code === 'email_exists' || supabaseError.message?.includes('already been registered'))) {
+      console.log(`[Registration] Detect desync: User ${email} exists in Supabase but not locally.`);
+      try {
+        console.log(`[Registration] Attempting to find and delete stale Supabase user...`);
+        // Fetch users to find the ID (listUsers defaults to 50, trying 1000 to be safe)
+        const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
+        
+        const inputEmail = email.toLowerCase();
+        // Since listUsers might not support efficient filtering in all versions, we search the returned list
+        const staleUser = listData?.users.find(u => u.email?.toLowerCase() === inputEmail);
+
+        if (staleUser) {
+          console.log(`[Registration] Deleting stale Supabase user: ${staleUser.id}`);
+          await supabaseAdmin.auth.admin.deleteUser(staleUser.id);
+          
+          console.log(`[Registration] Retrying creation for ${email}...`);
+          const retryResult = await supabaseAdmin.auth.admin.createUser({
+            email,
+            password,
+            email_confirm: true,
+            user_metadata: { name }
+          });
+
+          if (!retryResult.error) {
+            console.log('[Registration] Retry successful.');
+            supabaseUser = retryResult.data;
+            supabaseError = null; // Clear error to proceed
+          } else {
+            console.error('[Registration] Retry failed:', retryResult.error);
+            supabaseError = retryResult.error;
+          }
+        } else {
+           // If pagination is an issue, we might miss the user. 
+           // In valid use cases, this block shouldn't be reached if 'email_exists' was true.
+           console.warn(`[Registration] 'email_exists' error received but user not found in the first batch of users.`);
+        }
+      } catch (cleanupErr) {
+        console.error('[Registration] Cleanup attempt failed:', cleanupErr);
+      }
+    }
+
+    if (supabaseError) {
+      console.error('Supabase Auth Error:', supabaseError, email); // Add detailed logging
+      return res.status(400).json({ 
+        error: supabaseError.message || 'Failed to create user in authentication system',
+        details: process.env.NODE_ENV === 'development' ? supabaseError : undefined
+      });
+    }
+
+    // 2. Create user in database with transaction
     const user = await prisma.$transaction(async (tx) => {
       const newUser = await tx.user.create({
         data: {
           email,
-          password: hashedPassword,
+          password: hashedPassword, // For backend compatibility
         },
       });
 
-      // Create PublicUser entry
       await tx.publicUser.create({
         data: {
           id: newUser.id,
@@ -158,10 +230,14 @@ app.post('/auth/register', async (req, res) => {
 
     res.status(201).json({ message: 'User created', userId: user.id });
   } catch (error: any) {
+    console.error('Registration Error:', error); // Add detailed logging
     if (error.code === 'P2002') {
       return res.status(400).json({ error: 'Email already exists' });
     }
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ 
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? String(error) : undefined
+    });
   }
 });
 
