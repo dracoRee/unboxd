@@ -25,10 +25,12 @@ model User {
   userConversations Conversation[]    @relation("ConversationToUser")
   User_A            User[]            @relation("UserFollows")
   User_B            User[]            @relation("UserFollows")
+  publicUser        PublicUser?
 }
 
 model PublicUser {
   id             Int     @id
+  user           User    @relation(fields: [id], references: [id])
   name           String
   bio            String?
   profilePicture String?
@@ -41,6 +43,7 @@ model Series {
   imageUrl    String?
   totalItems  Int?
   items       Collectible[]
+  userCollectibles UserCollectible[]
 }
 
 model Collectible {
@@ -53,19 +56,15 @@ model Collectible {
   series         Series             @relation(fields: [seriesId], references: [id])
   trades         Trade[]
   offeredIn      TradeOfferedItem[]
-  owners         UserCollectible[]
   wishlistedBy   WishlistItem[]
 }
 
 model UserCollectible {
   id            Int         @id @default(autoincrement())
   userId        Int
-  collectibleId Int
-  acquiredAt    DateTime    @default(now())
-  collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  seriesId      Int 
+  series        Series      @relation(fields: [seriesId], references: [id]) 
   user          User        @relation(fields: [userId], references: [id])
-
-  @@unique([userId, collectibleId])
 }
 
 model Trade {
