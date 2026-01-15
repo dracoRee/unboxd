@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../generated/prisma"
@@ -14,31 +8,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Data models
-// Data models
 model User {
-  id               Int               @id @default(autoincrement())
-  email            String            @unique
-  password         String
-  resetToken       String?
-  resetTokenExpiry DateTime?
-  collection       UserCollectible[]
-  wishlist         WishlistItem[]
-  proposedTrades   Trade[]           @relation("ProposedTrades")
-  receivedTrades   Trade[]           @relation("ReceivedTrades")
-  messages         Message[]
-  following        User[]            @relation("UserFollows")
-  followedBy       User[]            @relation("UserFollows")
-  userConversations Conversation[]
-  publicUser       PublicUser?
+  id                Int               @id @default(autoincrement())
+  email             String            @unique
+  name              String?
+  password          String
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+  bio               String?
+  profilePicture    String?
+  messages          Message[]
+  proposedTrades    Trade[]           @relation("ProposedTrades")
+  receivedTrades    Trade[]           @relation("ReceivedTrades")
+  collection        UserCollectible[]
+  wishlist          WishlistItem[]
+  userConversations Conversation[]    @relation("ConversationToUser")
+  User_A            User[]            @relation("UserFollows")
+  User_B            User[]            @relation("UserFollows")
+  publicUser        PublicUser?
 }
 
 model PublicUser {
   id             Int     @id
+  user           User    @relation(fields: [id], references: [id])
   name           String
   bio            String?
   profilePicture String?
-  user           User    @relation(fields: [id], references: [id], onDelete: Cascade)
 }
 
 model Series {
@@ -46,7 +41,9 @@ model Series {
   name        String        @unique
   description String?
   imageUrl    String?
+  totalItems  Int?
   items       Collectible[]
+  userCollectibles UserCollectible[]
 }
 
 model Collectible {
@@ -57,21 +54,17 @@ model Collectible {
   imageUrl       String
   seriesId       Int
   series         Series             @relation(fields: [seriesId], references: [id])
-  owners         UserCollectible[]
-  wishlistedBy   WishlistItem[]
   trades         Trade[]
   offeredIn      TradeOfferedItem[]
+  wishlistedBy   WishlistItem[]
 }
 
 model UserCollectible {
   id            Int         @id @default(autoincrement())
   userId        Int
-  collectibleId Int
+  seriesId      Int 
+  series        Series      @relation(fields: [seriesId], references: [id]) 
   user          User        @relation(fields: [userId], references: [id])
-  collectible   Collectible @relation(fields: [collectibleId], references: [id])
-  acquiredAt    DateTime    @default(now())
-
-  @@unique([userId, collectibleId])
 }
 
 model Trade {
@@ -82,27 +75,27 @@ model Trade {
   status       String             @default("PENDING")
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
+  messages     Message[]
   proposer     User               @relation("ProposedTrades", fields: [proposerId], references: [id])
   receiver     User               @relation("ReceivedTrades", fields: [receiverId], references: [id])
   targetItem   Collectible        @relation(fields: [targetItemId], references: [id])
   offeredItems TradeOfferedItem[]
-  messages     Message[]
 }
 
 model TradeOfferedItem {
   id            Int         @id @default(autoincrement())
   tradeId       Int
   collectibleId Int
-  trade         Trade       @relation(fields: [tradeId], references: [id])
   collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  trade         Trade       @relation(fields: [tradeId], references: [id])
 }
 
 model WishlistItem {
   id            Int         @id @default(autoincrement())
   userId        Int
   collectibleId Int
-  user          User        @relation(fields: [userId], references: [id])
   collectible   Collectible @relation(fields: [collectibleId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
 
   @@unique([userId, collectibleId])
 }
@@ -111,18 +104,18 @@ model Conversation {
   id        Int       @id @default(autoincrement())
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  users     User[]
   messages  Message[]
+  users     User[]    @relation("ConversationToUser")
 }
 
 model Message {
   id             Int           @id @default(autoincrement())
   tradeId        Int?
-  conversationId Int?
   senderId       Int
   content        String
   createdAt      DateTime      @default(now())
-  trade          Trade?        @relation(fields: [tradeId], references: [id])
+  conversationId Int?
   conversation   Conversation? @relation(fields: [conversationId], references: [id])
   sender         User          @relation(fields: [senderId], references: [id])
+  trade          Trade?        @relation(fields: [tradeId], references: [id])
 }
