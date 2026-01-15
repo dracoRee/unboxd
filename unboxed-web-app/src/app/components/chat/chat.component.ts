@@ -65,36 +65,12 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     this.messageSubscription = this.messagingService.onNewMessage().subscribe(msg => {
       if (msg.conversationId !== this.conversationId) return;
 
-      // If this is our own message, check if we already handled it
       if (msg.senderId === this.currentUserId) {
-        // First check if message with same ID already exists (from HTTP response)
-        const existingById = this.messages.find(m => m.id === msg.id && m.id > 0);
-        if (existingById) {
-          // Already have this message, ignore socket duplicate
-          return;
-        }
-
-        // Check if we have an optimistic message (negative id) that matches
-        const optimisticIndex = this.messages.findIndex(m => 
-          m.id < 0 && 
-          m.senderId === this.currentUserId &&
-          m.content === msg.content &&
-          m.imageUrl === msg.imageUrl &&
-          Math.abs(new Date(m.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 5000 // Within 5 seconds
-        );
-
-        if (optimisticIndex !== -1) {
-          // Replace optimistic message with real one from socket
-          if (msg.id > 0) {
-            this.messages[optimisticIndex] = msg;
-            this.scrollToBottom();
-          }
-          return;
-        }
+        return;
       }
 
-      // Only add if not already in the list (avoid duplicates by real id)
-      if (!this.messages.find(m => m.id === msg.id && m.id > 0)) {
+    // Prevent duplicates by ID
+      if (!this.messages.find(m => m.id === msg.id)) {
         this.messages.push(msg);
         this.scrollToBottom();
       }
