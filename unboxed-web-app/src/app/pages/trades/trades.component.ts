@@ -16,7 +16,6 @@ import { Router } from '@angular/router';
 import { TradeService } from '../../services/trade.service';
 import { AuthService } from '../../services/auth.service';
 import { CollectionService } from '../../services/collection.service';
-import { UploadItemComponent } from './upload-item/upload-item.component';
 import { ChatComponent } from '../../components/chat/chat.component';
 
 export interface VerificationChecklist {
@@ -55,7 +54,7 @@ export interface Trade {
 @Component({
   selector: 'app-trades',
   standalone: true,
-  imports: [CommonModule, UploadItemComponent],
+  imports: [CommonModule],
   templateUrl: './trades.component.html',
   styleUrl: './trades.component.css'
 })

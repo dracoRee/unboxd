@@ -18,12 +18,22 @@ export class ResetPasswordComponent implements OnInit {
   error = signal('');
   success = signal(false);
   loading = signal(false);
+  showNewPassword = signal(false);
+  showConfirmPassword = signal(false);
 
   constructor(
     private authService: AuthService,
     private route: ActivatedRoute,
     private router: Router
   ) {}
+
+  toggleNewPasswordVisibility() {
+    this.showNewPassword.update(v => !v);
+  }
+
+  toggleConfirmPasswordVisibility() {
+    this.showConfirmPassword.update(v => !v);
+  }
 
   ngOnInit() {
     this.token = this.route.snapshot.queryParamMap.get('token') || '';

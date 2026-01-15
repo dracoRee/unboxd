@@ -15,9 +15,14 @@ export class LoginComponent {
   email = 'timothyzjtan@gmail.com';
   password = '123123123';
   error = signal('');
+  showPassword = signal(false);
   loading = signal(false);
 
   constructor(private authService: AuthService, private router: Router) {}
+
+  togglePasswordVisibility() {
+    this.showPassword.update(v => !v);
+  }
 
   onSubmit() {
     this.loading.set(true);
