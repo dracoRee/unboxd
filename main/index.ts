@@ -449,6 +449,27 @@ app.get('/series', async (req, res) => {
   }
 });
 
+// Get all collectibles for selection
+app.get('/collectibles', async (req, res) => {
+  try {
+    const collectibles = await prisma.collectible.findMany({
+      select: { 
+        id: true, 
+        name: true, 
+        imageUrl: true, 
+        series: { 
+          select: { name: true } 
+        } 
+      },
+      orderBy: { series: { name: 'asc' } }
+    });
+    res.json(collectibles);
+  } catch (error) {
+    console.error('Error fetching collectibles:', error);
+    res.status(500).json({ error: 'Failed to fetch collectibles' });
+  }
+});
+
 app.post('/upload', upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 

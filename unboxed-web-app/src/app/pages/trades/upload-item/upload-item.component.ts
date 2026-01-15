@@ -14,6 +14,8 @@ import { AuthService } from '../../../services/auth.service';
 })
 export class UploadItemComponent implements OnInit {
   // Form fields
+  selectedCollectibleId: string = '';
+  collectibles: any[] = [];
   serialNumber: string = '';
   demoVideoFile: File | null = null;
   demoVideoPreview: string | null = null;
@@ -36,6 +38,14 @@ export class UploadItemComponent implements OnInit {
     if (storedImage) {
       this.uploadedImageUrl = storedImage;
     }
+
+    // Fetch collectibles for the dropdown
+    this.http.get('http://localhost:3000/collectibles').subscribe({
+      next: (data: any) => {
+        this.collectibles = data;
+      },
+      error: (error) => console.error('Error fetching collectibles:', error)
+    });
   }
 
   onDemoVideoSelected(event: any): void {
@@ -85,7 +95,8 @@ export class UploadItemComponent implements OnInit {
   isFormValid(): boolean {
     return this.serialNumber.trim().length > 0 && 
            this.demoVideoFile !== null && 
-           this.receiptFile !== null;
+           this.receiptFile !== null &&
+           this.selectedCollectibleId !== '';
   }
 
   async submitListing(): Promise<void> {
@@ -106,6 +117,7 @@ export class UploadItemComponent implements OnInit {
       // Create FormData object
       const formData = new FormData();
       formData.append('userId', userId.toString());
+      formData.append('collectibleId', this.selectedCollectibleId);
       formData.append('serialNumber', this.serialNumber);
       formData.append('demoVideo', this.demoVideoFile!);
       formData.append('receipt', this.receiptFile!);
