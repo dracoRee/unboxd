@@ -18,8 +18,18 @@ export class RegisterComponent {
   confirmPassword = '';
   error = signal('');
   loading = signal(false);
+  showPassword = signal(false);
+  showConfirmPassword = signal(false);
 
   constructor(private authService: AuthService, private router: Router) {}
+
+  togglePasswordVisibility() {
+    this.showPassword.update(v => !v);
+  }
+
+  toggleConfirmPasswordVisibility() {
+    this.showConfirmPassword.update(v => !v);
+  }
 
   isPasswordComplex(): boolean {
     return this.hasUpperCase() && this.hasLowerCase() && this.hasSpecialChar() && this.hasMinLength();

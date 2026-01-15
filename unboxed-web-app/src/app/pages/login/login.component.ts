@@ -12,8 +12,8 @@ import { AuthService } from '../../services/auth.service';
   styleUrls: ['./login.component.css']
 })
 export class LoginComponent {
-  email = 'timothyzjtan@gmail.com';
-  password = '123123123';
+  email = '';
+  password = '';
   error = signal('');
   showPassword = signal(false);
   loading = signal(false);
