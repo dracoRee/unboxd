@@ -25,6 +25,7 @@ model User {
   userConversations Conversation[]    @relation("ConversationToUser")
   User_A            User[]            @relation("UserFollows")
   User_B            User[]            @relation("UserFollows")
+  isVerified     Boolean @default(false)
   publicUser        PublicUser?
 }
 
