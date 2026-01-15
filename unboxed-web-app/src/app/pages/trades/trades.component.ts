@@ -195,7 +195,7 @@ export class TradesComponent implements OnInit {
           this.isScanning = false;
           if (result.dbMatch) {
             const matchedItem = result.dbMatch;
-            this.collectionService.addToCollection(this.userId!, matchedItem.id).subscribe(() => {
+            this.collectionService.addToCollection(this.userId!, matchedItem.seriesId, matchedItem.imageUrl, matchedItem.name).subscribe(() => {
               alert(`Success! ${matchedItem.name} has been added to your collection and is now available for trade.`);
               this.loadTrades(); // Refresh even though it might not change trades list immediately
             });

@@ -64,7 +64,7 @@ io.on('connection', (socket) => {
     // Fetch sender profile picture from PublicUser
     let profilePicture = null;
     try {
-      const sender = await prisma.PublicUser.findUnique({
+      const sender = await prisma.publicUser.findUnique({
         where: { id: parseInt(senderId) },
         select: { profilePicture: true }
       });
@@ -141,7 +141,7 @@ app.post('/auth/register', async (req, res) => {
       });
 
       // Create PublicUser entry
-      await tx.PublicUser.create({
+      await tx.publicUser.create({
         data: {
           id: newUser.id,
           name: name || 'User',
@@ -317,50 +317,119 @@ app.get('/collection/:userId', async (req, res) => {
   try {
     const collection = await prisma.userCollectible.findMany({
       where: { userId: parseInt(userId) },
-      include: {
-        collectible: {
-          include: { series: true }
-        }
-      }
+      // include: { series: true } // Optional if we want series name directly, but we map below
     });
 
     // Group by series to show mastery progress
     const seriesStats = await prisma.series.findMany({
-      include: { items: true }
+      include: { items: true } // We still need total count from Series->items relation? 
+      // Actually, if we track by count, we need to know how many items are in the series.
+      // The Series model still has `items Collectible[]`.
     });
 
     const userProgress = seriesStats.map((series: any) => {
-      const ownedInSeries = collection.filter((uc: any) => uc.collectible.seriesId === series.id);
+      const userItemsInSeries = collection.filter((uc: any) => uc.seriesId === series.id);
       return {
         seriesId: series.id,
         seriesName: series.name,
-        totalItems: series.items.length,
-        ownedItems: ownedInSeries.length,
-        items: series.items.map((item: any) => ({
-          ...item,
-          isOwned: ownedInSeries.some((uc: any) => uc.collectibleId === item.id)
+        totalItems: series.totalItems || series.items.length, // Fallback if totalItems is null
+        ownedItems: userItemsInSeries.length,
+        items: userItemsInSeries.map((uc: any) => ({
+          id: uc.id,
+          name: uc.name || 'Unnamed Item',
+          imageUrl: uc.imageUrl,
+          isOwned: true
         }))
       };
-    });
+    }).filter(series => series.ownedItems > 0); // Only return series the user has started collecting
 
     res.json(userProgress);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to fetch collection' });
   }
 });
 
 app.post('/collection/add', async (req, res) => {
-  const { userId, collectibleId } = req.body;
+  const { userId, seriesId, name, imageUrl } = req.body;
   try {
     const userCollectible = await prisma.userCollectible.create({
       data: {
         userId: parseInt(userId),
-        collectibleId: parseInt(collectibleId)
+        seriesId: parseInt(seriesId),
+        name,
+        imageUrl
       }
     });
     res.status(201).json(userCollectible);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to add item to collection' });
+  }
+});
+
+app.delete('/collection/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    await prisma.userCollectible.delete({
+      where: { id: parseInt(id) }
+    });
+    res.json({ message: 'Collectible deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete collectible' });
+  }
+});
+
+app.get('/series', async (req, res) => {
+  try {
+    const series = await prisma.series.findMany({
+      select: { id: true, name: true, totalItems: true }
+    });
+    res.json(series);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch series' });
+  }
+});
+
+app.post('/upload', upload.single('image'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+  try {
+    const bucketName = 'collectibles';
+    const { data: buckets } = await supabaseAdmin.storage.listBuckets();
+    
+    if (!buckets?.find(b => b.name === bucketName)) {
+      console.log(`Bucket '${bucketName}' not found. Creating...`);
+      const { error: createError } = await supabaseAdmin.storage.createBucket(bucketName, {
+        public: true,
+        fileSizeLimit: 5242880, // 5MB
+        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp']
+      });
+      if (createError) {
+        console.error('Failed to create bucket:', createError);
+        return res.status(500).json({ error: 'Failed to initialize storage' });
+      }
+    }
+
+    const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    const { data, error } = await supabaseAdmin.storage
+      .from(bucketName)
+      .upload(fileName, req.file.buffer, {
+        contentType: req.file.mimetype,
+        upsert: false
+      });
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabaseAdmin.storage
+      .from('collectibles')
+      .getPublicUrl(fileName);
+
+    res.json({ url: publicUrl });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: 'Upload failed' });
   }
 });
 
@@ -576,7 +645,7 @@ app.get('/users/search', async (req, res) => {
   if (!q || typeof q !== 'string') return res.json([]);
   
   try {
-    const PublicUsers = await prisma.PublicUser.findMany({
+    const PublicUsers = await prisma.publicUser.findMany({
       where: {
         name: { contains: q, mode: 'insensitive' }
       },
@@ -614,7 +683,7 @@ app.get('/users/profile/:id', async (req, res) => {
     if (isNaN(userId)) return res.status(400).json({ error: 'Invalid user ID' });
 
     // Read from PublicUser table
-    const PublicUser = await prisma.PublicUser.findUnique({
+    const PublicUser = await prisma.publicUser.findUnique({
       where: { id: userId },
       select: {
         name: true,
@@ -633,7 +702,8 @@ app.get('/users/profile/:id', async (req, res) => {
             },
             followedBy: currentUserId && !isNaN(currentUserId) ? {
               where: { id: currentUserId },
-              select: { id: true }
+              select: { id: true },
+              take: 1
             } : undefined
           }
         }
@@ -670,7 +740,7 @@ app.patch('/users/profile', async (req, res) => {
     // Update both user and PublicUser tables in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Update PublicUser table
-      const PublicUser = await tx.PublicUser.upsert({
+      const PublicUser = await tx.publicUser.upsert({
         where: { id: parseInt(userId) },
         update: { name, bio, profilePicture },
         create: { 

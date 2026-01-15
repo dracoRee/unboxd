@@ -17,33 +17,34 @@ model User {
   resetTokenExpiry  DateTime?
   bio               String?
   profilePicture    String?
+  isVerified        Boolean           @default(false)
   messages          Message[]
+  publicUser        PublicUser?
   proposedTrades    Trade[]           @relation("ProposedTrades")
   receivedTrades    Trade[]           @relation("ReceivedTrades")
   collection        UserCollectible[]
   wishlist          WishlistItem[]
   userConversations Conversation[]    @relation("ConversationToUser")
-  User_A            User[]            @relation("UserFollows")
-  User_B            User[]            @relation("UserFollows")
-  isVerified     Boolean @default(false)
-  publicUser        PublicUser?
+  following         User[]            @relation("UserFollows")
+  followedBy        User[]            @relation("UserFollows")
 }
 
 model PublicUser {
   id             Int     @id
-  user           User    @relation(fields: [id], references: [id])
   name           String
   bio            String?
   profilePicture String?
+  isVerified     Boolean @default(false)
+  user           User    @relation(fields: [id], references: [id])
 }
 
 model Series {
-  id          Int           @id @default(autoincrement())
-  name        String        @unique
-  description String?
-  imageUrl    String?
-  totalItems  Int?
-  items       Collectible[]
+  id               Int               @id @default(autoincrement())
+  name             String            @unique
+  description      String?
+  imageUrl         String?
+  totalItems       Int?
+  items            Collectible[]
   userCollectibles UserCollectible[]
 }
 
@@ -61,11 +62,13 @@ model Collectible {
 }
 
 model UserCollectible {
-  id            Int         @id @default(autoincrement())
-  userId        Int
-  seriesId      Int 
-  series        Series      @relation(fields: [seriesId], references: [id]) 
-  user          User        @relation(fields: [userId], references: [id])
+  id       Int    @id @default(autoincrement())
+  userId   Int
+  seriesId Int
+  name          String?
+  imageUrl      String
+  series   Series @relation(fields: [seriesId], references: [id])
+  user     User   @relation(fields: [userId], references: [id])
 }
 
 model Trade {
