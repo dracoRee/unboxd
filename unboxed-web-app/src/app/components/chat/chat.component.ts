@@ -22,8 +22,15 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
 
   messages: ChatMessage[] = [];
   newMessage = '';
+  selectedImage: File | null = null;
+  imagePreview: string | null = null;
+  isUploading = false;
 
   private messageSubscription!: Subscription;
+
+  openImage(imageUrl: string) {
+    window.open(imageUrl, '_blank');
+  }
 
   constructor(private messagingService: MessagingService) {}
 
@@ -56,43 +63,167 @@ export class ChatComponent implements OnInit, OnChanges, OnDestroy, AfterViewChe
     if (this.messageSubscription) this.messageSubscription.unsubscribe();
     
     this.messageSubscription = this.messagingService.onNewMessage().subscribe(msg => {
-      if (msg.conversationId === this.conversationId) {
-        // Only add if not already in the list (avoid duplicates)
-        if (!this.messages.find(m => m.id === msg.id)) {
-          this.messages.push(msg);
-          this.scrollToBottom();
+      if (msg.conversationId !== this.conversationId) return;
+
+      // If this is our own message, check if we already handled it
+      if (msg.senderId === this.currentUserId) {
+        // First check if message with same ID already exists (from HTTP response)
+        const existingById = this.messages.find(m => m.id === msg.id && m.id > 0);
+        if (existingById) {
+          // Already have this message, ignore socket duplicate
+          return;
         }
+
+        // Check if we have an optimistic message (negative id) that matches
+        const optimisticIndex = this.messages.findIndex(m => 
+          m.id < 0 && 
+          m.senderId === this.currentUserId &&
+          m.content === msg.content &&
+          m.imageUrl === msg.imageUrl &&
+          Math.abs(new Date(m.createdAt).getTime() - new Date(msg.createdAt).getTime()) < 5000 // Within 5 seconds
+        );
+
+        if (optimisticIndex !== -1) {
+          // Replace optimistic message with real one from socket
+          if (msg.id > 0) {
+            this.messages[optimisticIndex] = msg;
+            this.scrollToBottom();
+          }
+          return;
+        }
+      }
+
+      // Only add if not already in the list (avoid duplicates by real id)
+      if (!this.messages.find(m => m.id === msg.id && m.id > 0)) {
+        this.messages.push(msg);
+        this.scrollToBottom();
       }
     });
   }
 
-  sendMessage() {
-    if (!this.newMessage.trim()) return;
+  onImageSelected(event: any) {
+    const file = event.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      this.selectedImage = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.imagePreview = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  removeImage() {
+    this.selectedImage = null;
+    this.imagePreview = null;
+  }
+
+  async sendMessage() {
+    if (!this.newMessage.trim() && !this.selectedImage) return;
     
     const content = this.newMessage.trim();
     this.newMessage = '';
+    let imageUrl: string | undefined = undefined;
 
-    // Optimistic UI update
-    const tempMsg: ChatMessage = {
-      id: -Math.random(),
-      conversationId: this.conversationId,
-      senderId: this.currentUserId,
-      content,
-      createdAt: new Date().toISOString(),
-      sender: { name: this.senderName, profilePicture: null }
-    };
-    this.messages.push(tempMsg);
-    this.scrollToBottom();
+    // If there's an image, upload it first
+    if (this.selectedImage) {
+      this.isUploading = true;
+      try {
+        const uploadResult = await this.messagingService.uploadImage(this.selectedImage).toPromise();
+        imageUrl = uploadResult.url;
+        this.selectedImage = null;
+        this.imagePreview = null;
+      } catch (error) {
+        console.error('Failed to upload image:', error);
+        this.isUploading = false;
+        alert('Failed to upload image. Please try again.');
+        return;
+      }
+      this.isUploading = false;
+    }
 
-    // Send via socket
-    this.messagingService.sendMessageSocket(
-      this.conversationId,
-      this.currentUserId,
-      content,
-      this.senderName
-    );
+    // Optimistic UI update (only for image messages, text messages use socket)
+    let tempMsg: ChatMessage | null = null;
     
-    this.onMessageSent.emit(tempMsg);
+    if (imageUrl) {
+      tempMsg = {
+        id: -Math.random(),
+        conversationId: this.conversationId,
+        senderId: this.currentUserId,
+        content: content || '📷 Image',
+        imageUrl: imageUrl,
+        createdAt: new Date().toISOString(),
+        sender: { name: this.senderName, profilePicture: null }
+      };
+      this.messages.push(tempMsg);
+      this.scrollToBottom();
+    } else {
+      // For text messages, create temp message for socket
+      tempMsg = {
+        id: -Math.random(),
+        conversationId: this.conversationId,
+        senderId: this.currentUserId,
+        content: content,
+        createdAt: new Date().toISOString(),
+        sender: { name: this.senderName, profilePicture: null }
+      };
+      this.messages.push(tempMsg);
+      this.scrollToBottom();
+    }
+
+    // Send via HTTP (for images) or socket (for text)
+    if (imageUrl) {
+      // For images, use HTTP to handle upload
+      this.messagingService.sendMessage(
+        this.conversationId,
+        this.currentUserId,
+        content || '',
+        imageUrl
+      ).subscribe({
+        next: (savedMsg) => {
+          // Replace optimistic message with real one
+          if (tempMsg) {
+            const tempIndex = this.messages.findIndex(m => m.id === tempMsg!.id);
+            if (tempIndex !== -1) {
+              this.messages[tempIndex] = savedMsg;
+            } else {
+              // If temp message was already replaced, check for duplicates
+              const existingIndex = this.messages.findIndex(m => 
+                m.id === savedMsg.id || 
+                (m.senderId === this.currentUserId && 
+                 m.content === savedMsg.content && 
+                 m.imageUrl === savedMsg.imageUrl &&
+                 Math.abs(new Date(m.createdAt).getTime() - new Date(savedMsg.createdAt).getTime()) < 2000)
+              );
+              if (existingIndex === -1) {
+                this.messages.push(savedMsg);
+              }
+            }
+          }
+          this.onMessageSent.emit(savedMsg);
+        },
+        error: (err) => {
+          console.error('Failed to send message:', err);
+          // Remove optimistic message on error
+          if (tempMsg) {
+            const tempIndex = this.messages.findIndex(m => m.id === tempMsg!.id);
+            if (tempIndex !== -1) {
+              this.messages.splice(tempIndex, 1);
+            }
+          }
+          alert('Failed to send message. Please try again.');
+        }
+      });
+    } else {
+      // For text-only messages, use socket
+      this.messagingService.sendMessageSocket(
+        this.conversationId,
+        this.currentUserId,
+        content,
+        this.senderName
+      );
+      this.onMessageSent.emit(tempMsg!);
+    }
   }
 
   ngAfterViewChecked() {
