@@ -1,7 +1,7 @@
 <nav *ngIf="authService.isLoggedIn()" class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
   <div class="container mx-auto px-4 h-16 flex items-center justify-between">
     <!-- Logo -->
-    <div class="flex items-center gap-4 cursor-pointer pl-4" routerLink="/browse">
+    <div class="flex items-center gap-4 cursor-pointer pl-4" routerLink="/browse" (click)="resetFilters()">
       <span class="logo-area"><img src="logo-banner.PNG" alt="unboxed logo"></span>
     </div>
 

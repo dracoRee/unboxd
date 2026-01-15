@@ -26,6 +26,7 @@ export class NavbarComponent {
   }
 
   resetFilters() {
+    this.searchQuery = ''; // Clear local search input
     this.tradeService.resetFilters();
   }
 
