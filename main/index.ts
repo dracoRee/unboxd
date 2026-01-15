@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import dotenv from 'dotenv';
 import multer from 'multer';
 import { identifyCollectible } from './services/ai.service.js';
+import { uploadFile, ensureBucketsExist } from './services/storage.service.js';
 import { createClient } from '@supabase/supabase-js';
 
 dotenv.config();
@@ -32,7 +33,7 @@ const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:4200",
+    origin: "http://localhost:4200", // allow requests from port 4200 to port 3000
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -286,30 +287,7 @@ app.post('/auth/reset-password', async (req, res) => {
   }
 });
 
-// AI Recognition
-app.post('/ai/recognize', upload.single('image'), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No image provided' });
-  }
 
-  try {
-    const identification = await identifyCollectible(req.file.buffer, req.file.mimetype);
-    
-    // Attempt to find the matching collectible in our database
-    const collectible = await prisma.collectible.findFirst({
-      where: {
-        name: { contains: identification.name, mode: 'insensitive' },
-        series: { name: { contains: identification.series, mode: 'insensitive' } }
-      },
-      include: { series: true }
-    });
-
-    res.json({ identification, dbMatch: collectible });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'AI recognition failed' });
-  }
-});
 
 // Collection Management
 app.get('/collection/:userId', async (req, res) => {
@@ -351,6 +329,7 @@ app.get('/collection/:userId', async (req, res) => {
 
 app.post('/collection/add', async (req, res) => {
   const { userId, collectibleId } = req.body;
+  console.log('Add to collection request:', { userId, collectibleId });
   try {
     const userCollectible = await prisma.userCollectible.create({
       data: {
@@ -360,7 +339,8 @@ app.post('/collection/add', async (req, res) => {
     });
     res.status(201).json(userCollectible);
   } catch (error) {
-    res.status(500).json({ error: 'Failed to add item to collection' });
+    console.error('Failed to add to collection:', error);
+    res.status(500).json({ error: 'Failed to add item to collection', details: String(error) });
   }
 });
 
@@ -1027,6 +1007,252 @@ app.get('/messages/:conversationId', async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch messages' });
   }
+});
+
+// ============================================
+// LISTING ENDPOINTS
+// ============================================
+
+// Create a new listing
+app.post('/listings/create', upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'demoVideo', maxCount: 1 },
+  { name: 'receipt', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const { userId, collectibleId, serialNumber } = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    if (!userId || !serialNumber) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (!files?.image || !files?.demoVideo || !files?.receipt) {
+      return res.status(400).json({ error: 'All files (image, demoVideo, receipt) are required' });
+    }
+
+    const timestamp = Date.now();
+    const imageFile = files.image[0];
+    const demoVideoFile = files.demoVideo[0];
+    const receiptFile = files.receipt[0];
+
+    // Upload files to Supabase Storage
+    const imageUrl = await uploadFile(
+      'collectible-images',
+      `${userId}/${timestamp}_image.${imageFile.originalname.split('.').pop()}`,
+      imageFile.buffer,
+      imageFile.mimetype
+    );
+
+    const demoVideoUrl = await uploadFile(
+      'collectible-demos',
+      `${userId}/${timestamp}_demo.${demoVideoFile.originalname.split('.').pop()}`,
+      demoVideoFile.buffer,
+      demoVideoFile.mimetype
+    );
+
+    const receiptUrl = await uploadFile(
+      'collectible-receipts',
+      `${userId}/${timestamp}_receipt.${receiptFile.originalname.split('.').pop()}`,
+      receiptFile.buffer,
+      receiptFile.mimetype
+    );
+
+    // Create listing in database
+    const listing = await prisma.userListing.create({
+      data: {
+        userId: parseInt(userId),
+        collectibleId: collectibleId ? parseInt(collectibleId) : null,
+        serialNumber,
+        imageUrl,
+        demoVideoUrl,
+        receiptUrl,
+        isAvailableForTrade: true
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            publicUser: { select: { name: true, profilePicture: true } }
+          }
+        },
+        collectible: {
+          include: { series: true }
+        }
+      }
+    });
+
+    res.status(201).json({
+      id: listing.id,
+      userId: listing.userId,
+      serialNumber: listing.serialNumber,
+      imageUrl: listing.imageUrl,
+      demoVideoUrl: listing.demoVideoUrl,
+      receiptUrl: listing.receiptUrl,
+      isAvailableForTrade: listing.isAvailableForTrade,
+      createdAt: listing.createdAt,
+      collectible: listing.collectible,
+      user: {
+        id: listing.user.id,
+        name: listing.user.publicUser?.name || 'User',
+        profilePicture: listing.user.publicUser?.profilePicture
+      }
+    });
+  } catch (error) {
+    console.error('Listing creation error:', error);
+    res.status(500).json({ error: 'Failed to create listing', details: String(error) });
+  }
+});
+
+// Get user's listings
+app.get('/listings/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const listings = await prisma.userListing.findMany({
+      where: { userId: parseInt(userId) },
+      include: {
+        collectible: {
+          include: { series: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(listings);
+  } catch (error) {
+    console.error('Failed to fetch user listings:', error);
+    res.status(500).json({ error: 'Failed to fetch listings' });
+  }
+});
+
+// Get marketplace listings (all available listings)
+app.get('/listings/marketplace', async (req, res) => {
+  try {
+    const { seriesId, excludeUserId, limit = '50', offset = '0' } = req.query;
+    
+    const where: any = {
+      isAvailableForTrade: true
+    };
+
+    if (seriesId) {
+      where.collectible = {
+        seriesId: parseInt(seriesId as string)
+      };
+    }
+
+    if (excludeUserId) {
+      where.userId = {
+        not: parseInt(excludeUserId as string)
+      };
+    }
+
+    const listings = await prisma.userListing.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            publicUser: { 
+              select: { 
+                name: true, 
+                profilePicture: true 
+              } 
+            }
+          }
+        },
+        collectible: {
+          include: { series: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: parseInt(limit as string),
+      skip: parseInt(offset as string)
+    });
+
+    // Map to include user details from PublicUser
+    const mappedListings = listings.map(listing => ({
+      ...listing,
+      user: {
+        id: listing.user.id,
+        name: listing.user.publicUser?.name || 'User',
+        profilePicture: listing.user.publicUser?.profilePicture
+      }
+    }));
+
+    res.json(mappedListings);
+  } catch (error) {
+    console.error('Failed to fetch marketplace listings:', error);
+    res.status(500).json({ error: 'Failed to fetch marketplace listings' });
+  }
+});
+
+// Get single listing by ID
+app.get('/listings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const listing = await prisma.userListing.findUnique({
+      where: { id: parseInt(id) },
+      include: {
+        user: {
+          select: {
+            id: true,
+            publicUser: { 
+              select: { 
+                name: true, 
+                profilePicture: true,
+                bio: true
+              } 
+            }
+          }
+        },
+        collectible: {
+          include: { series: true }
+        }
+      }
+    });
+
+    if (!listing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    res.json({
+      ...listing,
+      user: {
+        id: listing.user.id,
+        name: listing.user.publicUser?.name || 'User',
+        profilePicture: listing.user.publicUser?.profilePicture,
+        bio: listing.user.publicUser?.bio
+      }
+    });
+  } catch (error) {
+    console.error('Failed to fetch listing:', error);
+    res.status(500).json({ error: 'Failed to fetch listing' });
+  }
+});
+
+// Update listing availability
+app.patch('/listings/:id/availability', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { isAvailableForTrade } = req.body;
+
+    const listing = await prisma.userListing.update({
+      where: { id: parseInt(id) },
+      data: { isAvailableForTrade }
+    });
+
+    res.json(listing);
+  } catch (error) {
+    console.error('Failed to update listing:', error);
+    res.status(500).json({ error: 'Failed to update listing' });
+  }
+});
+
+// Initialize storage buckets on startup
+ensureBucketsExist().catch(err => {
+  console.error('Failed to ensure storage buckets exist:', err);
 });
 
 server.listen(PORT, () => {

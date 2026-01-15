@@ -1,8 +1,22 @@
+// BUG: 1. Alert message Scan failed: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [404 Not Found] models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+
+// Expected: no error and able to scan the uploaded image
+// Suspect: gemini model is not found for API version v1beta, or is not supported for generateContent.
+//            or .wep file is not supported for scanning
+//          - ai.service.ts is not ran at all, 
+
+// Possible fix: edit package.json to not just run tsx index.ts but also "start": "node services/ai.service.ts"
+//                - so, "start": "tsx index.ts && node services/ai.service.ts"
+//                - okay I tried to make "npm start" to run "tsx index.ts && node services/ai.service.ts" but the error still persists 
+
+
 import { Component, OnInit, effect, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { TradeService } from '../../services/trade.service';
 import { AuthService } from '../../services/auth.service';
 import { CollectionService } from '../../services/collection.service';
+import { UploadItemComponent } from './upload-item/upload-item.component';
 import { ChatComponent } from '../../components/chat/chat.component';
 
 export interface VerificationChecklist {
@@ -41,7 +55,7 @@ export interface Trade {
 @Component({
   selector: 'app-trades',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, UploadItemComponent],
   templateUrl: './trades.component.html',
   styleUrl: './trades.component.css'
 })
@@ -54,6 +68,7 @@ export class TradesComponent implements OnInit {
   userId?: number;
   activeChatTradeId: number | null = null;
   isScanning = false;
+  isUploaded = false; 
 
   checklistItems: Array<{ key: keyof VerificationChecklist, label: string, helper: string }> = [
     { 
@@ -86,7 +101,8 @@ export class TradesComponent implements OnInit {
   constructor(
     private tradeService: TradeService,
     private authService: AuthService,
-    private collectionService: CollectionService
+    private collectionService: CollectionService,
+    private router: Router
   ) {
     effect(() => {
       this.userId = this.authService.backendUser()?.id;
@@ -179,36 +195,57 @@ export class TradesComponent implements OnInit {
   triggerUpload() {
     this.fileInput.nativeElement.click();
     console.log("button clicked")
+
   }
 
-  onFileSelected(event: any) {
-    const file = event.target.files[0];
-    if (!this.userId) {
-      alert('You must be logged in to list an item.');
-      return;
-    }
-    if (file) {
-      this.isScanning = true;
-      console.log("scanning file")
-      this.collectionService.scanCollectible(file).subscribe({
-        next: (result) => {
-          this.isScanning = false;
-          if (result.dbMatch) {
-            const matchedItem = result.dbMatch;
-            this.collectionService.addToCollection(this.userId!, matchedItem.id).subscribe(() => {
-              alert(`Success! ${matchedItem.name} has been added to your collection and is now available for trade.`);
-              this.loadTrades(); // Refresh even though it might not change trades list immediately
-            });
-          } else {
-            alert(`We identified ${result.identification.name}, but it's not in our official registry yet.`);
-          }
-        },
-        error: (err) => {
-          this.isScanning = false;
-          console.error('Scan error:', err);
-          alert('Failed to identify item. Please use a clearer photo of the character.');
-        }
-      });
-    }
+onFileSelected(event: any) {
+  const file = event.target.files[0];
+  
+  if (!file) {
+    console.log("No file selected");
+    return;
   }
+
+  // Check both Supabase and backend user
+  const supabaseUser = this.authService.currentUser();
+  const currentBackendUser = this.authService.backendUser();
+  
+  console.log("Supabase User:", supabaseUser);
+  console.log("Backend User:", currentBackendUser);
+  
+  // If not logged into Supabase at all
+  if (!supabaseUser) {
+    console.log("Not logged into Supabase");
+    alert('You must be logged in to list an item. Please log in first.');
+    // Reset the file input
+    this.fileInput.nativeElement.value = '';
+    return;
+  }
+  
+  // If logged into Supabase but backend sync hasn't completed
+  if (!currentBackendUser || !currentBackendUser.id) {
+    console.log("Backend user not synced yet. Please wait and try again.");
+    alert('Your account is still syncing. Please wait a moment and try again.');
+    // Reset the file input
+    this.fileInput.nativeElement.value = '';
+    return;
+  }
+
+  const userId = currentBackendUser.id;
+  console.log("Using userId:", userId);
+
+  // Convert file to base64 and store in session storage
+  const reader = new FileReader();
+  reader.onload = (e: any) => {
+    const imageDataUrl = e.target.result;
+    sessionStorage.setItem('uploadedItemImage', imageDataUrl);
+    
+    // Navigate to upload-item page
+    this.router.navigate(['/trades/upload-item']);
+  };
+  reader.readAsDataURL(file);
+  
+  // Reset input to allow selecting the same file again if needed
+  this.fileInput.nativeElement.value = '';
+}
 }
