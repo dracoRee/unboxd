@@ -34,3 +34,8 @@ input[type="file"] + label {
 .animate-spin {
   animation: spin 1s linear infinite;
 }
+
+/* dropdwown option */
+#collectibleId {
+  color: black;
+}

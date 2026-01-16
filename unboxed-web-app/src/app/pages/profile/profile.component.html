@@ -1,0 +1,73 @@
+<div class="profile-container" *ngIf="profile">
+      <div class="profile-header">
+        <div class="avatar-container">
+          <img [src]="profile.profilePicture || 'assets/default-avatar.png'" alt="Avatar" class="profile-avatar">
+          <button *ngIf="isOwnProfile" class="edit-avatar-btn" (click)="triggerFileInput()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+          <input type="file" #fileInput (change)="onFileSelected($event)" accept="image/*" class="hidden">
+        </div>
+        
+        <div class="profile-info">
+          <div class="name-row">
+            <h1>{{ profile.name }}</h1>
+            <div class="actions">
+              <button *ngIf="isOwnProfile" (click)="toggleEdit()" class="btn-secondary">
+                {{ isEditing ? 'Cancel' : 'Edit Profile' }}
+              </button>
+              <button *ngIf="!isOwnProfile" 
+                      (click)="toggleFollow()" 
+                      [class.btn-following]="profile.isFollowing"
+                      class="btn-primary">
+                {{ profile.isFollowing ? 'Following' : 'Follow' }}
+              </button>
+            </div>
+          </div>
+          
+          <p class="email" *ngIf="isOwnProfile">{{ profile.email }}</p>
+          
+          <div class="stats">
+            <div class="stat-item">
+              <strong>{{ profile._count.collection }}</strong>
+              <span>Items</span>
+            </div>
+            <div class="stat-item">
+              <strong>{{ profile._count.followedBy }}</strong>
+              <span>Followers</span>
+            </div>
+            <div class="stat-item">
+              <strong>{{ profile._count.following }}</strong>
+              <span>Following</span>
+            </div>
+          </div>
+
+          <div class="bio-section">
+            <p *ngIf="!isEditing">{{ profile.bio || 'No bio yet.' }}</p>
+            <div *ngIf="isEditing" class="edit-form">
+              <textarea [(ngModel)]="editData.bio" placeholder="Write something about yourself..."></textarea>
+              <div class="upload-status" *ngIf="selectedFile">
+                Selected: {{ selectedFile.name }}
+              </div>
+              <button (click)="saveProfile()" class="btn-primary" [disabled]="isSaving">
+                {{ isSaving ? 'Saving...' : 'Save Changes' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-content">
+        <!-- Collection and other sections could go here -->
+        <div class="section-tabs">
+          <div class="tab active">Collection</div>
+          <div class="tab">Activity</div>
+        </div>
+        
+        <div class="coming-soon">
+          Collection view integration coming soon...
+        </div>
+      </div>
+    </div>

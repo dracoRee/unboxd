@@ -11,8 +11,8 @@ export class authGuard {
     private router: Router
   ) {}
 
-  canActivate(): boolean {
-    if (this.auth.isLoggedIn()) {
+  async canActivate(): Promise<boolean> {
+    if (await this.auth.isAuthenticated()) {
       return true;
     }
 
