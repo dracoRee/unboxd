@@ -105,6 +105,18 @@ export class AuthService {
     return this.http.post(`${this.apiUrl}/auth/reset-password`, data);
   }
 
+  async isAuthenticated(): Promise<boolean> {
+    const { data: { session } } = await this.supabaseService.auth.getSession();
+    if (session) {
+      if (!this.currentUser()) {
+        this.currentUser.set(session.user);
+        this.syncWithBackend(session.user);
+      }
+      return true;
+    }
+    return false;
+  }
+
   isLoggedIn(): boolean {
     return !!this.currentUser();
   }
