@@ -55,6 +55,36 @@ export class SupabaseService {
   }
 
   /**
+   * Fetch active listings from UserListing joined with Collectible, Series, and User
+   */
+  async getAvailableListings(): Promise<any[]> {
+    console.log('Fetching available listings from Supabase...');
+    const { data, error } = await this.supabase
+      .from('UserListing')
+      .select(`
+        *,
+        Collectible (
+          *,
+          Series (*)
+        ),
+        User (
+          id,
+          name,
+          profilePicture
+        )
+      `)
+      .eq('isAvailableForTrade', true);
+
+    if (error) {
+      console.error('Error fetching listings:', error);
+      throw error;
+    }
+    
+    console.log('Fetched listed items:', data);
+    return data || [];
+  }
+
+  /**
    * Fetch all series
    */
   async getSeries(): Promise<any[]> {
