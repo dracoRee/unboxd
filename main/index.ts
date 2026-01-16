@@ -369,6 +369,26 @@ app.post('/auth/reset-password', async (req, res) => {
 
 
 
+// Get User Listings
+app.get('/users/listings/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const listings = await prisma.userListing.findMany({
+      where: { userId: parseInt(userId) },
+      include: {
+        collectible: {
+          select: { name: true, series: { select: { name: true } } }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(listings);
+  } catch (error) {
+    console.error('Listings fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch listings' });
+  }
+});
+
 // Collection Management
 app.get('/collection/:userId', async (req, res) => {
   const { userId } = req.params;
@@ -767,6 +787,7 @@ app.get('/users/profile/:id', async (req, res) => {
         name: true,
         bio: true,
         profilePicture: true,
+        isVerified: true,
         user: {
           select: {
             id: true,
@@ -805,9 +826,9 @@ app.get('/users/profile/:id', async (req, res) => {
     };
 
     res.json(response);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Profile fetch error:', error);
-    res.status(500).json({ error: 'Failed to fetch profile' });
+    res.status(500).json({ error: 'Failed to fetch profile', details: error?.message });
   }
 });
 
