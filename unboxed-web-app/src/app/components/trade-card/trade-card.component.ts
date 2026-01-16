@@ -25,13 +25,16 @@ export class TradeCardComponent {
     event.stopPropagation();
     const userId = this.authService.backendUser()?.id || 1;
     
+    // Use collectible_id if present (for listings), fallback to item_id (legacy/raw collectible)
+    const targetId = this.item.collectible_id ? parseInt(this.item.collectible_id) : parseInt(this.item.item_id);
+
     if (!this.isFavourited) {
-      this.tradeService.addToWishlist(userId, parseInt(this.item.item_id)).subscribe({
+      this.tradeService.addToWishlist(userId, targetId).subscribe({
         next: () => this.isFavourited = true,
         error: (err) => console.error('Failed to wishlist', err)
       });
     } else {
-      this.tradeService.removeFromWishlist(userId, parseInt(this.item.item_id)).subscribe({
+      this.tradeService.removeFromWishlist(userId, targetId).subscribe({
         next: () => this.isFavourited = false,
         error: (err) => console.error('Failed to remove from wishlist', err)
       });

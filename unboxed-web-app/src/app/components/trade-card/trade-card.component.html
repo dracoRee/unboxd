@@ -48,10 +48,21 @@
     </div>
 
     <div class="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
-      <div class="flex -space-x-2">
-        <div class="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-[8px] font-bold">H</div>
-        <div class="w-6 h-6 rounded-full border-2 border-white bg-accent-100 flex items-center justify-center text-[8px] font-bold text-accent-700">W</div>
+      <!-- Owner Info or Placeholders -->
+      <div class="flex items-center gap-2 mr-auto" *ngIf="item.ownerName; else noOwner">
+        <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 shadow-sm flex-shrink-0">
+           <img *ngIf="item.ownerAvatar" [src]="item.ownerAvatar" class="w-full h-full object-cover" [alt]="item.ownerName">
+           <span *ngIf="!item.ownerAvatar" class="text-[10px] font-bold text-gray-500">{{ item.ownerName.charAt(0).toUpperCase() }}</span>
+        </div>
+        <span class="text-xs font-bold text-gray-600 truncate max-w-[80px]" [title]="item.ownerName">{{ item.ownerName }}</span>
       </div>
+      <ng-template #noOwner>
+        <div class="flex -space-x-2">
+          <div class="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-[8px] font-bold">H</div>
+          <div class="w-6 h-6 rounded-full border-2 border-white bg-accent-100 flex items-center justify-center text-[8px] font-bold text-accent-700">W</div>
+        </div>
+      </ng-template>
+
       <button 
         (click)="onProposeTrade()"
         class="flex-1 bg-gray-900 text-white hover:bg-accent-600 py-2 rounded-xl text-sm font-bold transition-all"

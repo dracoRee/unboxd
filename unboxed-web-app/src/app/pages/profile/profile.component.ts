@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterModule } from '@angular/router';
-import { UserService, UserProfile } from '../../services/user.service';
+import { UserService, UserProfile, UserListing } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { SupabaseService } from '../../services/supabase.service';
 import { FormsModule } from '@angular/forms';
@@ -21,6 +21,8 @@ export class ProfileComponent implements OnInit {
   isSaving = false;
   editData = { bio: '', profilePicture: '' };
   selectedFile: File | null = null;
+  userListings: UserListing[] = [];
+  activeTab: 'collection' | 'activity' | 'listings' = 'collection';
 
   constructor(
     private route: ActivatedRoute,
@@ -49,6 +51,14 @@ export class ProfileComponent implements OnInit {
         bio: profile.bio || '', 
         profilePicture: profile.profilePicture || '' 
       };
+      
+      this.loadListings(id);
+    });
+  }
+
+  loadListings(userId: number) {
+    this.userService.getUserListings(userId).subscribe(listings => {
+      this.userListings = listings;
     });
   }
 

@@ -19,6 +19,23 @@ export interface UserProfile {
   };
 }
 
+export interface UserListing {
+  id: number;
+  userId: number;
+  collectibleId: number | null;
+  serialNumber: string;
+  demoVideoUrl: string;
+  receiptUrl: string;
+  imageUrl?: string;
+  isAvailableForTrade: boolean;
+  createdAt: string;
+  updatedAt: string;
+  collectible?: {
+    name: string;
+    series: { name: string };
+  };
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -54,5 +71,10 @@ export class UserService {
 
   getFollowing(userId: number): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/users/${userId}/following`);
+  }
+
+  listingsBuffer: UserListing[] = []; 
+  getUserListings(userId: number): Observable<UserListing[]> {
+    return this.http.get<UserListing[]>(`${this.apiUrl}/users/listings/${userId}`);
   }
 }
