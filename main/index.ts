@@ -10,6 +10,12 @@ import multer from 'multer';
 import { uploadFile, ensureBucketsExist } from './services/storage.service.js';
 import { createClient } from '@supabase/supabase-js';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
 
 const upload = multer({ storage: multer.memoryStorage() });
@@ -28,25 +34,27 @@ const supabaseAdmin = createClient(
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 
+const FRONTEND_URL = process.env.FRONTEND_URL;
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:4200", // allow requests from port 4200 to port 3000
+    origin:FRONTEND_URL, // allow requests from port 4200 to port 3000
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 
 app.use(cors({
-  origin: 'http://localhost:4200',
+  origin:FRONTEND_URL,
   credentials: true
 }));
 app.use(express.json());
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4200';
+// const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4200';
 
 // Socket.io connection handling
 // Socket.io connection handling
@@ -1445,4 +1453,16 @@ ensureBucketsExist().catch(err => {
 
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Serve static files from the Angular dist folder
+const angularDistPath = path.resolve(
+  __dirname,
+  '../unboxed-web-app/dist/unboxed-web-app/browser'
+);
+app.use(express.static(angularDistPath));
+
+// Handle Angular routing by serving index.html for any unknown routes
+app.get(/.*/, (req, res) => {
+  res.sendFile(path.join(angularDistPath, 'index.html'));
 });
