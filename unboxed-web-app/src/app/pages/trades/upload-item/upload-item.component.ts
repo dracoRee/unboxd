@@ -4,6 +4,9 @@ import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
+import { environment } from '@/environments/environment';
+
+const host_url = environment.apiBaseUrl;
 
 @Component({
   selector: 'app-upload-item',
@@ -38,9 +41,9 @@ export class UploadItemComponent implements OnInit {
     if (storedImage) {
       this.uploadedImageUrl = storedImage;
     }
-
+    const collectiblesUrl = new URL('/collectibles', host_url).toString();
     // Fetch collectibles for the dropdown
-    this.http.get('http://localhost:3000/collectibles').subscribe({
+    this.http.get(collectiblesUrl).subscribe({
       next: (data: any) => {
         this.collectibles = data;
       },
@@ -128,9 +131,9 @@ export class UploadItemComponent implements OnInit {
         const blob = await response.blob();
         formData.append('image', blob, 'collectible.jpg');
       }
-      
+      const listingsUrl = new URL('/listings/create', host_url).toString();
       // Submit to backend
-      this.http.post('http://localhost:3000/listings/create', formData)
+      this.http.post(listingsUrl, formData)
         .subscribe({
           next: (result: any) => {
             console.log('Listing created successfully:', result);

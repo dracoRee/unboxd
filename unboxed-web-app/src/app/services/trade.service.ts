@@ -5,6 +5,9 @@ import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { TradeItem } from '../models/trade-item.model';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
+import { environment } from '@/environments/environment';
+
+const host_url = environment.apiBaseUrl;
 
 export interface TradeFilters {
   search?: string;
@@ -18,7 +21,7 @@ export interface TradeFilters {
   providedIn: 'root'
 })
 export class TradeService {
-  private apiUrl = 'http://localhost:3000';
+  private apiUrl = host_url;
   private proposeTradeSource = new Subject<TradeItem>();
   proposeTrade$ = this.proposeTradeSource.asObservable();
 
@@ -110,15 +113,24 @@ export class TradeService {
     const user = this.authService.currentUser();
     if (!user) return of([]);
 
-    // Note: In a real app, you'd map user.id (UUID) to your numeric ID
-    // For now we'll try to fetch based on the logged in user
+    // Note: UserCollectible relates to Series, not Collectible
+    // UserCollectible has its own name and imageUrl fields
     return from(this.supabaseService.getUserCollection(user.id)).pipe(
       map(data => data.map(row => {
-        const item = row.Collectible;
-        return {
-          ...this.mapToTradeItem(item),
+        // UserCollectible has: id, userId, seriesId, name, imageUrl, Series
+        const series = row.Series;
+        const tradeItem: TradeItem = {
+          item_id: row.id?.toString() || '',
+          name: row.name || 'Unnamed Item',
+          series: series?.name || 'Unknown Series',
+          rarity: 'Unknown', // UserCollectible doesn't have rarity, would need to join with Collectible if needed
+          referenceValue: 0, // UserCollectible doesn't have referenceValue
+          imageUrl: this.supabaseService.getImageUrl(row.imageUrl, true),
+          isFeatured: false,
+          status: 'available' as 'available' | 'pending' | 'traded',
           ownerId: row.userId.toString()
         };
+        return tradeItem;
       })),
       catchError(error => {
         console.error('Error in getMyCollection:', error);

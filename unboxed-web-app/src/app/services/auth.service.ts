@@ -4,6 +4,9 @@ import { Router } from '@angular/router';
 import { Observable, from, map, tap } from 'rxjs';
 import { SupabaseService } from './supabase.service';
 import { UserService } from './user.service';
+import { environment } from '@/environments/environment';
+
+const host_url = environment.apiBaseUrl;
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +14,7 @@ import { UserService } from './user.service';
 export class AuthService {
   currentUser = signal<any>(null);
   backendUser = signal<any>(null);
-  private apiUrl = 'http://localhost:3000';
+  private apiUrl = host_url;
 
   constructor(
     private supabaseService: SupabaseService, 

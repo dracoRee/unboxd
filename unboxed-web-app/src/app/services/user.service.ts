@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { environment } from '@/environments/environment';
+
+const host_url = environment.apiBaseUrl;
 
 export interface UserProfile {
   id: number;
@@ -21,7 +23,7 @@ export interface UserProfile {
   providedIn: 'root'
 })
 export class UserService {
-  private apiUrl = 'http://localhost:3000'; // Fallback to localhost if environment not updated
+  private apiUrl = host_url; // Fallback to localhost if environment not updated
 
   constructor(private http: HttpClient) {}
 
