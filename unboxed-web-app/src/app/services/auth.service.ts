@@ -46,7 +46,11 @@ export class AuthService {
   }
 
   private syncWithBackend(supabaseUser: any) {
-    const name = supabaseUser.user_metadata?.name || supabaseUser.email.split('@')[0];
+    if (!supabaseUser.email) {
+      console.error('Cannot sync user: email is missing');
+      return;
+    }
+    const name = supabaseUser.user_metadata?.['name'] || supabaseUser.email.split('@')[0];
     this.userService.syncUser(supabaseUser.email, name).subscribe({
       next: (user) => {
         this.backendUser.set(user);
