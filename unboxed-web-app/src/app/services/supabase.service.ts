@@ -12,7 +12,7 @@ export class SupabaseService {
   private readonly IMAGES_BUCKET = 'images';
 
   constructor() {
-    console.log('Initializing Supabase client with URL:', environment.supabaseUrl);
+    // console.log('Initializing Supabase client with URL:', environment.supabaseUrl);
     
     this.supabase = createClient(
       environment.supabaseUrl,
@@ -38,7 +38,7 @@ export class SupabaseService {
    * Fetch all items from the Collectible table joined with Series
    */
   async getItems(): Promise<any[]> {
-    console.log('Fetching items from Supabase...');
+    // console.log('Fetching items from Supabase...');
     
     // Performance: join with Series to get series name
     const { data, error } = await this.supabase
@@ -50,7 +50,7 @@ export class SupabaseService {
       throw error;
     }
     
-    console.log('Fetched items with Series join:', data);
+    // console.log('Fetched items with Series join:', data);
     return data || [];
   }
 

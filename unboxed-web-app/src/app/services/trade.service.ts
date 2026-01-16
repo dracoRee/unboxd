@@ -92,7 +92,15 @@ export class TradeService {
       referenceValue: collectible.referenceValue,
       imageUrl: this.supabaseService.getImageUrl(collectible.imageUrl, true),
       isFeatured: collectible.referenceValue > 40,
-      status: collectible.status || 'available'
+      status: collectible.status || 'available',
+      description: collectible.description || 'No Available Description.',
+      condition: collectible.condition || 'No Available Condition.',
+      listedAt: collectible.createdAt ? new Date(collectible.createdAt) : new Date(),
+      postedBy: {
+        id: collectible.userId || 0,
+        name: collectible.User?.name || 'Unknown User',
+        profilePicture: collectible.User?.profilePicture
+      }
     };
   }
 
@@ -148,13 +156,15 @@ export class TradeService {
     this.proposeTradeSource.next(item);
   }
 
-  sendTradeOffer(receiverId: number, targetItemId: number, offeredItemIds: number[]): Observable<any> {
+  sendTradeOffer(receiverId: number, targetItemId: number, offeredItemIds: number[], buyerPaysCash: boolean, cashTopUp: number): Observable<any> {
     const proposerId = this.authService.backendUser()?.id || 1; // Fallback to 1 if not synced yet
     return this.http.post(`${this.apiUrl}/trades`, {
       proposerId,
       receiverId,
       targetItemId,
-      offeredItemIds
+      offeredItemIds,
+      buyerPaysCash,
+      cashTopUp
     });
   }
 

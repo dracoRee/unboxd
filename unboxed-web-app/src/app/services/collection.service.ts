@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { SeriesProgress, AIRecognitionResult } from '../models/collection.model';
+import { SeriesProgress, AIRecognitionResult, CollectibleItem } from '../models/collection.model';
 
 @Injectable({
   providedIn: 'root'
@@ -37,5 +37,9 @@ export class CollectionService {
 
   deleteCollectible(collectibleId: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/collection/${collectibleId}`);
+  }
+
+  getAllSeries(): Observable<{ id: number; name: string; items: CollectibleItem[] }[]> {
+    return this.http.get<{ id: number; name: string; items: CollectibleItem[] }[]>(`${this.apiUrl}/series`);
   }
 }

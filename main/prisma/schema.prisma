@@ -23,6 +23,7 @@ model User {
   proposedTrades    Trade[]           @relation("ProposedTrades")
   receivedTrades    Trade[]           @relation("ReceivedTrades")
   collection        UserCollectible[]
+  collectibles      Collectible[]
   wishlist          WishlistItem[]
   listings          UserListing[]
   userConversations Conversation[]    @relation("ConversationToUser")
@@ -50,17 +51,23 @@ model Series {
 }
 
 model Collectible {
-  id             Int                @id @default(autoincrement())
-  name           String
-  rarity         String
-  referenceValue Float
-  imageUrl       String
-  seriesId       Int
-  series         Series             @relation(fields: [seriesId], references: [id])
-  trades         Trade[]
-  offeredIn      TradeOfferedItem[]
-  wishlistedBy   WishlistItem[]
-  userListings   UserListing[]
+  id              Int                @id @default(autoincrement())
+  name            String
+  rarity          String
+  description     String?
+  condition       String?
+  referenceValue  Float
+  imageUrl        String
+  seriesId        Int
+  series          Series             @relation(fields: [seriesId], references: [id])
+  trades          Trade[]
+  offeredIn       TradeOfferedItem[]
+  wishlistedBy    WishlistItem[]
+  userListings    UserListing[]
+  userId          Int?
+  user            User?              @relation(fields: [userId], references: [id])
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @default(now()) @updatedAt
 }
 
 model UserCollectible {

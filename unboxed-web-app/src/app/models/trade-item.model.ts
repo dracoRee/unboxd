@@ -8,4 +8,12 @@ export interface TradeItem {
   isFeatured: boolean;
   ownerId?: string; // To distinguish between my items and others
   status?: 'available' | 'pending' | 'traded';
+  description: string;
+  condition: string;
+  listedAt: Date;
+  postedBy: {
+    id: number;
+    name: string;
+    profilePicture?: string;
+  };
 }
