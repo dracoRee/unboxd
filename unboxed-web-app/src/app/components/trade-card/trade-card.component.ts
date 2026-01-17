@@ -15,6 +15,7 @@ export class TradeCardComponent {
   @Input() item!: TradeItem;
 
   isFavourited = false;
+  isImageZoomed = false;
 
   constructor(
     private tradeService: TradeService,
@@ -44,4 +45,16 @@ export class TradeCardComponent {
   onProposeTrade() {
     this.tradeService.proposeTrade(this.item);
   }
+
+  onCardClick(item: TradeItem) {
+    console.log('Card clicked:', item);
+    // For example, open the trade modal:
+    this.tradeService.proposeTrade(item);
+  }
+
+  toggleImageZoom(event?: Event) {
+    if (event) event.stopPropagation(); // prevent card click
+    this.isImageZoomed = !this.isImageZoomed;
+  }
+
 }

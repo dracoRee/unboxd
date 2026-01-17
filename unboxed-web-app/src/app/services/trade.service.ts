@@ -44,7 +44,7 @@ export class TradeService {
         
         const matchesSeries = !filters.series?.length || filters.series.includes(item.series);
         const matchesRarity = !filters.rarity?.length || filters.rarity.includes(item.rarity);
-        const matchesValue = filters.maxValue === undefined || item.referenceValue <= filters.maxValue;
+        const matchesValue = filters.maxValue === undefined || item.referenceValue === undefined || item.referenceValue <= filters.maxValue;
         
         // Mocking category logic for now
         let matchesCategory = true;
@@ -84,6 +84,7 @@ export class TradeService {
    * Map Supabase item to TradeItem model
    */
   private mapToTradeItem(item: any): TradeItem {
+    console.table(item);
     // If item has a nested Collectible, it's likely a UserListing or UserCollectible
     // The getAvailableListings returns UserListing with nested Collectible
     // But getWishlist returns Collectible directly (mapped previously) or UserWishlist which has Collectible nested
@@ -130,8 +131,17 @@ export class TradeService {
         series: 'Unknown',
         rarity: 'Unknown',
         referenceValue: 0,
+        listingPrice: 0,
         imageUrl: '',
-        isFeatured: false
+        isFeatured: false,
+        description: collectible.description || 'No Available Description.',
+        condition: collectible.condition || 'No Available Condition.',
+        listedAt: collectible.createdAt ? new Date(collectible.createdAt) : new Date(),
+        postedBy: {
+          id: collectible.userId || 0,
+          name: collectible.User?.name || 'Unknown User',
+          profilePicture: collectible.User?.profilePicture
+        }
       };
     }
 
@@ -140,16 +150,23 @@ export class TradeService {
     return {
       item_id: listingId,
       collectible_id: collectible.id?.toString(),
+      listingTitle: item.title,
       name: collectible.name,
       series: series?.name || 'Unknown Series',
       rarity: collectible.rarity,
-      referenceValue: collectible.referenceValue,
-      imageUrl: this.supabaseService.getImageUrl(collectible.imageUrl, true),
+      referenceValue: collectible.referenceValue || 0,
+      listingPrice: item.listingPrice || 0,
+      imageUrl: item.imageUrl,
       isFeatured: collectible.referenceValue > 40,
-      status: 'available', // Listings are available
-      ownerId: ownerId,
-      ownerName: ownerName,
-      ownerAvatar: ownerAvatar
+      status: collectible.status || 'available',
+      description: item.description || 'No Available Description.',
+      condition: item.condition || 'No Available Condition.',
+      listedAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+      postedBy: {
+        id: item.userId || 0,
+        name: item.User?.name || 'Unknown User',
+        profilePicture: item.User?.profilePicture
+      }
     };
   }
 
@@ -179,10 +196,19 @@ export class TradeService {
           series: series?.name || 'Unknown Series',
           rarity: 'Unknown', // UserCollectible doesn't have rarity, would need to join with Collectible if needed
           referenceValue: 0, // UserCollectible doesn't have referenceValue
+          listingPrice: 0,
           imageUrl: this.supabaseService.getImageUrl(row.imageUrl, true),
           isFeatured: false,
           status: 'available' as 'available' | 'pending' | 'traded',
-          ownerId: row.userId.toString()
+          ownerId: row.userId.toString(),
+          description: row.description || 'No Available Description.',
+          condition: row.condition || 'No Available Condition.',
+          listedAt: row.createdAt ? new Date(row.createdAt) : new Date(),
+          postedBy: {
+            id: row.userId || 0,
+            name: row.User?.name || 'Unknown User',
+            profilePicture: row.User?.profilePicture
+          }
         };
         return tradeItem;
       })),
@@ -214,13 +240,15 @@ export class TradeService {
     this.proposeTradeSource.next(item);
   }
 
-  sendTradeOffer(receiverId: number, targetItemId: number, offeredItemIds: number[]): Observable<any> {
+  sendTradeOffer(receiverId: number, targetItemId: number, offeredItemIds: number[], buyerPaysCash: boolean, cashTopUp: number): Observable<any> {
     const proposerId = this.authService.backendUser()?.id || 1; // Fallback to 1 if not synced yet
     return this.http.post(`${this.apiUrl}/trades`, {
       proposerId,
       receiverId,
       targetItemId,
-      offeredItemIds
+      offeredItemIds,
+      buyerPaysCash,
+      cashTopUp
     });
   }
 

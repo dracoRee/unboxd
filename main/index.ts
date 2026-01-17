@@ -549,8 +549,14 @@ app.post('/upload', upload.single('image'), async (req, res) => {
 
 // Trades API
 app.post('/trades', async (req, res) => {
-  const { proposerId, receiverId, targetItemId, offeredItemIds } = req.body;
+  const { proposerId, receiverId, targetItemId, offeredItemIds, buyerPaysCash, cashTopUp } = req.body;
   try {
+
+    const proposer = await prisma.user.findUnique({ where: { id: parseInt(proposerId) } });
+    const receiver = await prisma.user.findUnique({ where: { id: parseInt(receiverId) } });
+    if (!proposer) return res.status(400).json({ error: 'Proposer does not exist' });
+    if (!receiver) return res.status(400).json({ error: 'Receiver does not exist' });
+
     const trade = await prisma.trade.create({
       data: {
         proposerId: parseInt(proposerId),
