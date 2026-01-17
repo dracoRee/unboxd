@@ -5,3 +5,7 @@ footer {
 .container {
     margin-top: 20px;
 }
+
+.quick-links {
+    cursor: pointer;
+}
