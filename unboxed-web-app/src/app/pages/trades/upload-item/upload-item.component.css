@@ -31,6 +31,14 @@ input[type="file"] + label {
   }
 }
 
+#seriesSelect {
+  color: black;
+}
+
+#customSeriesName {
+  color: black;
+}
+
 .animate-spin {
   animation: spin 1s linear infinite;
 }

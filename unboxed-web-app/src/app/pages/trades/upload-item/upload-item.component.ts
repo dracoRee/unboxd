@@ -6,6 +6,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { environment } from '@/environments/environment';
 import { UserService } from '../../../services/user.service';
+import { CollectionService } from '../../../services/collection.service';
 
 const host_url = environment.apiBaseUrl;
 
@@ -20,6 +21,9 @@ export class UploadItemComponent implements OnInit {
   // Form fields
   title: string = '';
   seriesName: string = '';
+  availableSeries: any[] = [];
+  selectedSeries: string = '';
+  customSeriesName: string = '';
   description: string = '';
   serialNumber: string = '';
   referenceValue: number | null = null;
@@ -57,7 +61,8 @@ export class UploadItemComponent implements OnInit {
     private route: ActivatedRoute,
     private authService: AuthService,
     private http: HttpClient,
-    private userService: UserService
+    private userService: UserService,
+    private collectionService: CollectionService
   ) {}
 
   ngOnInit(): void {
@@ -73,6 +78,44 @@ export class UploadItemComponent implements OnInit {
         this.uploadedImageUrl = storedImage;
       }
     }
+    this.loadSeries();
+  }
+
+  loadSeries() {
+    this.collectionService.getSeries().subscribe({
+      next: (series) => {
+        this.availableSeries = series;
+        this.matchSeriesSelection();
+      },
+      error: (err) => console.error('Failed to load series', err)
+    });
+  }
+
+  matchSeriesSelection() {
+    if (this.seriesName && this.availableSeries.length > 0) {
+      const match = this.availableSeries.find(s => s.name === this.seriesName);
+      if (match) {
+        this.selectedSeries = this.seriesName;
+      } else {
+        this.selectedSeries = 'custom';
+        this.customSeriesName = this.seriesName;
+      }
+    }
+  }
+
+  onSeriesChange() {
+    if (this.selectedSeries !== 'custom') {
+      this.seriesName = this.selectedSeries;
+      this.customSeriesName = '';
+    } else {
+      this.seriesName = this.customSeriesName;
+    }
+  }
+
+  onCustomSeriesInput() {
+    if (this.selectedSeries === 'custom') {
+      this.seriesName = this.customSeriesName;
+    }
   }
 
   loadListing(id: number) {
@@ -86,6 +129,8 @@ export class UploadItemComponent implements OnInit {
         this.serialNumber = listing.serialNumber;
         this.referenceValue = listing.referenceValue || null;
         this.uploadedImageUrl = listing.imageUrl || null;
+
+        this.matchSeriesSelection();
 
         if (listing.dealMethods) {
           const methods = Array.isArray(listing.dealMethods) ? listing.dealMethods : 
