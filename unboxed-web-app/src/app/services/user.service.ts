@@ -27,6 +27,12 @@ export interface UserListing {
   demoVideoUrl: string;
   receiptUrl: string;
   imageUrl?: string;
+  title: string;
+  description: string;
+  condition: string;
+  referenceValue?: number;
+  dealMethods?: string[];
+  seriesName?: string;
   isAvailableForTrade: boolean;
   createdAt: string;
   updatedAt: string;

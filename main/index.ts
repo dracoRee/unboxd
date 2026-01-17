@@ -1216,7 +1216,7 @@ app.post('/listings/create', upload.fields([
   { name: 'receipt', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    const { userId, collectibleId, serialNumber } = req.body;
+    const { userId, collectibleId, serialNumber, title, description, condition, referenceValue, dealMethods, seriesName } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
     if (!userId || !serialNumber) {
@@ -1254,12 +1254,28 @@ app.post('/listings/create', upload.fields([
       receiptFile.mimetype
     );
 
+    let parsedDealMethods: string[] = [];
+    try {
+      if (dealMethods) {
+        parsedDealMethods = typeof dealMethods === 'string' ? JSON.parse(dealMethods) : dealMethods;
+      }
+    } catch (e) {
+      console.error('Error parsing dealMethods:', e);
+      parsedDealMethods = [];
+    }
+
     // Create listing in database
     const listing = await prisma.userListing.create({
       data: {
         userId: parseInt(userId),
         collectibleId: collectibleId ? parseInt(collectibleId) : null,
         serialNumber,
+        title: title || "Untitled Listing",
+        description: description || "No description provided",
+        condition: condition || "BRAND_NEW",
+        referenceValue: referenceValue ? parseFloat(referenceValue) : null,
+        dealMethods: parsedDealMethods,
+        seriesName: seriesName || null,
         imageUrl,
         demoVideoUrl,
         receiptUrl,

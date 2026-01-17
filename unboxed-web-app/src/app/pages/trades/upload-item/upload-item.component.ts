@@ -17,9 +17,26 @@ const host_url = environment.apiBaseUrl;
 })
 export class UploadItemComponent implements OnInit {
   // Form fields
-  selectedCollectibleId: string = '';
-  collectibles: any[] = [];
+  title: string = '';
+  seriesName: string = '';
+  description: string = '';
   serialNumber: string = '';
+  referenceValue: number | null = null;
+  
+  condition: string = 'BRAND_NEW';
+  conditionOptions = [
+    { value: 'BRAND_NEW', label: 'Brand New - Never used. May come with original packaging or tag.' },
+    { value: 'LIKE_NEW', label: 'Like New - Used once or twice. As good as new.' },
+    { value: 'LIGHTLY_USED', label: 'Lightly Used - Used with care. Flaws, if any, are barely noticeable.' },
+    { value: 'WELL_USED', label: 'Well Used - Has minor flaws or defects.' },
+    { value: 'HEAVILY_USED', label: 'Heavily Used - Has obvious signs of use or defects.' }
+  ];
+
+  dealMethods = {
+    meetup: false,
+    delivery: false
+  };
+
   demoVideoFile: File | null = null;
   demoVideoPreview: string | null = null;
   receiptFile: File | null = null;
@@ -41,14 +58,6 @@ export class UploadItemComponent implements OnInit {
     if (storedImage) {
       this.uploadedImageUrl = storedImage;
     }
-    const collectiblesUrl = new URL('/collectibles', host_url).toString();
-    // Fetch collectibles for the dropdown
-    this.http.get(collectiblesUrl).subscribe({
-      next: (data: any) => {
-        this.collectibles = data;
-      },
-      error: (error) => console.error('Error fetching collectibles:', error)
-    });
   }
 
   onDemoVideoSelected(event: any): void {
@@ -96,10 +105,14 @@ export class UploadItemComponent implements OnInit {
   }
 
   isFormValid(): boolean {
-    return this.serialNumber.trim().length > 0 && 
+    const hasDealMethod = this.dealMethods.meetup || this.dealMethods.delivery;
+    return this.title.trim().length > 0 &&
+           this.seriesName.trim().length > 0 &&
+           this.serialNumber.trim().length > 0 && 
+           this.referenceValue !== null &&
+           hasDealMethod &&
            this.demoVideoFile !== null && 
-           this.receiptFile !== null &&
-           this.selectedCollectibleId !== '';
+           this.receiptFile !== null;
   }
 
   async submitListing(): Promise<void> {
@@ -120,7 +133,17 @@ export class UploadItemComponent implements OnInit {
       // Create FormData object
       const formData = new FormData();
       formData.append('userId', userId.toString());
-      formData.append('collectibleId', this.selectedCollectibleId);
+      formData.append('title', this.title);
+      formData.append('seriesName', this.seriesName);
+      formData.append('description', this.description);
+      formData.append('condition', this.condition);
+      formData.append('referenceValue', this.referenceValue!.toString());
+      
+      const methods = [];
+      if (this.dealMethods.meetup) methods.push('Meet-up');
+      if (this.dealMethods.delivery) methods.push('Delivery');
+      formData.append('dealMethods', JSON.stringify(methods));
+
       formData.append('serialNumber', this.serialNumber);
       formData.append('demoVideo', this.demoVideoFile!);
       formData.append('receipt', this.receiptFile!);

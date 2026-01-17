@@ -23,6 +23,7 @@ model User {
   proposedTrades    Trade[]           @relation("ProposedTrades")
   receivedTrades    Trade[]           @relation("ReceivedTrades")
   collection        UserCollectible[]
+  collectibles      Collectible[]
   wishlist          WishlistItem[]
   listings          UserListing[]
   userConversations Conversation[]    @relation("ConversationToUser")
@@ -50,18 +51,26 @@ model Series {
 }
 
 model Collectible {
-  id             Int                @id @default(autoincrement())
-  name           String
-  rarity         String
-  referenceValue Float
-  imageUrl       String
-  seriesId       Int
-  series         Series             @relation(fields: [seriesId], references: [id])
-  trades         Trade[]
-  offeredIn      TradeOfferedItem[]
-  wishlistedBy   WishlistItem[]
-  userListings   UserListing[]
+  id              Int                @id @default(autoincrement())
+  name            String
+  rarity          String
+  description     String?
+  condition       String?
+  referenceValue  Float
+  imageUrl        String
+  seriesId        Int
+  series          Series             @relation(fields: [seriesId], references: [id])
+  trades          Trade[]
+  offeredIn       TradeOfferedItem[]
+  wishlistedBy    WishlistItem[]
+  userListings    UserListing[]
+  userId          Int?
+  user            User?              @relation(fields: [userId], references: [id])
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @default(now()) @updatedAt
 }
+
+
 
 model UserCollectible {
   id       Int    @id @default(autoincrement())
@@ -77,10 +86,19 @@ model UserListing {
   id                  Int         @id @default(autoincrement())
   userId              Int
   collectibleId       Int?
+  title               String              @default("Untitled Listing")
   serialNumber        String
   demoVideoUrl        String
   receiptUrl          String
   imageUrl            String?
+  description         String              @default("No description provided")
+
+  condition           ListingCondition    @default(BRAND_NEW)
+  
+  referenceValue      Float?
+  dealMethods         String[]            @default([])
+  seriesName          String?
+
   isAvailableForTrade Boolean     @default(true)
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
@@ -145,4 +163,12 @@ model Message {
   conversation   Conversation? @relation(fields: [conversationId], references: [id])
   sender         User          @relation(fields: [senderId], references: [id])
   trade          Trade?        @relation(fields: [tradeId], references: [id])
+}
+
+enum ListingCondition {
+  BRAND_NEW
+  LIKE_NEW
+  LIGHTLY_USED
+  WELL_USED
+  HEAVILY_USED
 }
