@@ -131,7 +131,15 @@ export class TradeService {
         rarity: 'Unknown',
         referenceValue: 0,
         imageUrl: '',
-        isFeatured: false
+        isFeatured: false,
+        description: collectible.description || 'No Available Description.',
+        condition: collectible.condition || 'No Available Condition.',
+        listedAt: collectible.createdAt ? new Date(collectible.createdAt) : new Date(),
+        postedBy: {
+          id: collectible.userId || 0,
+          name: collectible.User?.name || 'Unknown User',
+          profilePicture: collectible.User?.profilePicture
+        }
       };
     }
 
@@ -187,7 +195,15 @@ export class TradeService {
           imageUrl: this.supabaseService.getImageUrl(row.imageUrl, true),
           isFeatured: false,
           status: 'available' as 'available' | 'pending' | 'traded',
-          ownerId: row.userId.toString()
+          ownerId: row.userId.toString(),
+          description: row.description || 'No Available Description.',
+          condition: row.condition || 'No Available Condition.',
+          listedAt: row.createdAt ? new Date(row.createdAt) : new Date(),
+          postedBy: {
+            id: row.userId || 0,
+            name: row.User?.name || 'Unknown User',
+            profilePicture: row.User?.profilePicture
+          }
         };
         return tradeItem;
       })),

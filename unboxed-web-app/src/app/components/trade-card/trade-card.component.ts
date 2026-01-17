@@ -43,5 +43,6 @@ export class TradeCardComponent {
 
   onProposeTrade() {
     this.tradeService.proposeTrade(this.item);
+    console.table(this.item);
   }
 }
