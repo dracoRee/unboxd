@@ -194,10 +194,13 @@ export class TradesComponent implements OnInit {
   triggerUpload() {
     this.fileInput.nativeElement.click();
     console.log("button clicked")
-
   }
 
-onFileSelected(event: any) {
+  editListing(listingId: number) {
+    this.router.navigate(['/trades/edit-item', listingId]);
+  }
+
+  onFileSelected(event: any) {
   const file = event.target.files[0];
   
   if (!file) {

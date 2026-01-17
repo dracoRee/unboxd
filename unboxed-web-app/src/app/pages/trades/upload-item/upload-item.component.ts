@@ -2,9 +2,10 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../../services/auth.service';
 import { environment } from '@/environments/environment';
+import { UserService } from '../../../services/user.service';
 
 const host_url = environment.apiBaseUrl;
 
@@ -46,18 +47,65 @@ export class UploadItemComponent implements OnInit {
   isSubmitting: boolean = false;
   uploadedImageUrl: string | null = null;
   
+  // Editing state
+  isEditing: boolean = false;
+  editingId: number | null = null;
+  existingListing: any = null;
+  
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private authService: AuthService,
-    private http: HttpClient
+    private http: HttpClient,
+    private userService: UserService
   ) {}
 
   ngOnInit(): void {
-    // Get the uploaded image from session storage or state
-    const storedImage = sessionStorage.getItem('uploadedItemImage');
-    if (storedImage) {
-      this.uploadedImageUrl = storedImage;
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.isEditing = true;
+      this.editingId = parseInt(id, 10);
+      this.loadListing(this.editingId);
+    } else {
+      // Get the uploaded image from session storage or state
+      const storedImage = sessionStorage.getItem('uploadedItemImage');
+      if (storedImage) {
+        this.uploadedImageUrl = storedImage;
+      }
     }
+  }
+
+  loadListing(id: number) {
+    this.userService.getListing(id).subscribe({
+      next: (listing) => {
+        this.existingListing = listing;
+        this.title = listing.title;
+        this.seriesName = listing.seriesName || '';
+        this.description = listing.description;
+        this.condition = listing.condition;
+        this.serialNumber = listing.serialNumber;
+        this.referenceValue = listing.referenceValue || null;
+        this.uploadedImageUrl = listing.imageUrl || null;
+
+        if (listing.dealMethods) {
+          const methods = Array.isArray(listing.dealMethods) ? listing.dealMethods : 
+            (typeof listing.dealMethods === 'string' ? JSON.parse(listing.dealMethods) : []);
+          
+          this.dealMethods = {
+            meetup: methods.includes('Meet-up'),
+            delivery: methods.includes('Delivery')
+          };
+        }
+
+        this.demoVideoPreview = listing.demoVideoUrl;
+        this.receiptPreview = listing.receiptUrl;
+      },
+      error: (err) => {
+        console.error('Failed to load listing', err);
+        alert('Failed to load listing details.');
+        this.router.navigate(['/trades']);
+      }
+    });
   }
 
   onDemoVideoSelected(event: any): void {
@@ -106,13 +154,19 @@ export class UploadItemComponent implements OnInit {
 
   isFormValid(): boolean {
     const hasDealMethod = this.dealMethods.meetup || this.dealMethods.delivery;
-    return this.title.trim().length > 0 &&
+    const basicValid = this.title.trim().length > 0 &&
            this.seriesName.trim().length > 0 &&
            this.serialNumber.trim().length > 0 && 
            this.referenceValue !== null &&
-           hasDealMethod &&
-           this.demoVideoFile !== null && 
-           this.receiptFile !== null;
+           hasDealMethod;
+
+    if (this.isEditing) {
+        const videoValid = this.demoVideoFile !== null || !!this.existingListing?.demoVideoUrl;
+        const receiptValid = this.receiptFile !== null || !!this.existingListing?.receiptUrl;
+        return basicValid && videoValid && receiptValid;
+    } else {
+        return basicValid && this.demoVideoFile !== null && this.receiptFile !== null && !!this.uploadedImageUrl;
+    }
   }
 
   async submitListing(): Promise<void> {
@@ -125,8 +179,12 @@ export class UploadItemComponent implements OnInit {
 
     try {
       const userId = this.authService.backendUser()?.id;
+      if (!userId && !this.isEditing) { // UserId might be needed for check but backend handles it
+         // Allow editing if we have loaded listing? Actually we need auth always
+      }
       if (!userId) {
         alert('User not authenticated. Please log in again.');
+        this.isSubmitting = false;
         return;
       }
 
@@ -145,39 +203,62 @@ export class UploadItemComponent implements OnInit {
       formData.append('dealMethods', JSON.stringify(methods));
 
       formData.append('serialNumber', this.serialNumber);
-      formData.append('demoVideo', this.demoVideoFile!);
-      formData.append('receipt', this.receiptFile!);
       
-      // Convert base64 image to blob and append
-      if (this.uploadedImageUrl) {
+      if (this.demoVideoFile) formData.append('demoVideo', this.demoVideoFile!);
+      if (this.receiptFile) formData.append('receipt', this.receiptFile!);
+      
+      // Convert base64 image to blob and append if new
+      if (this.uploadedImageUrl && !this.uploadedImageUrl.startsWith('http')) {
         const response = await fetch(this.uploadedImageUrl);
         const blob = await response.blob();
         formData.append('image', blob, 'collectible.jpg');
       }
+
       const listingsUrl = new URL('/listings/create', host_url).toString();
-      // Submit to backend
-      this.http.post(listingsUrl, formData)
-        .subscribe({
-          next: (result: any) => {
-            console.log('Listing created successfully:', result);
-            
-            // Clear session storage
-            sessionStorage.removeItem('uploadedItemImage');
-            
-            alert('Your item has been successfully listed!');
-            
-            // Navigate back to trades page
+      
+      if (this.isEditing && this.editingId) {
+        this.userService.updateListing(this.editingId, formData).subscribe({
+          next: (result) => {
+            console.log('Listing updated:', result);
+            alert('Listing updated successfully!');
             this.router.navigate(['/trades']);
           },
           error: (error) => {
-            console.error('Error submitting listing:', error);
-            alert(`Failed to submit listing: ${error.error?.error || error.message || 'Unknown error'}`);
+            console.error('Error updating listing:', error);
+            alert(`Failed to update listing: ${error.error?.error || error.message}`);
             this.isSubmitting = false;
           },
           complete: () => {
             this.isSubmitting = false;
           }
         });
+      } else {
+        // Create mode
+        if (!this.demoVideoFile || !this.receiptFile) {
+             // Redundant check but safe
+             alert('Files required for new listing');
+             this.isSubmitting = false;
+             return;
+        }
+        
+        this.http.post(listingsUrl, formData)
+          .subscribe({
+            next: (result: any) => {
+              console.log('Listing created successfully:', result);
+              sessionStorage.removeItem('uploadedItemImage');
+              alert('Your item has been successfully listed!');
+              this.router.navigate(['/trades']);
+            },
+            error: (error) => {
+              console.error('Error submitting listing:', error);
+              alert(`Failed to submit listing: ${error.error?.error || error.message || 'Unknown error'}`);
+              this.isSubmitting = false;
+            },
+            complete: () => {
+              this.isSubmitting = false;
+            }
+          });
+      }
     } catch (error) {
       console.error('Error preparing listing:', error);
       alert('Failed to prepare listing. Please try again.');

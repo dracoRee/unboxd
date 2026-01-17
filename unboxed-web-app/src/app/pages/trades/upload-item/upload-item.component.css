@@ -39,3 +39,7 @@ input[type="file"] + label {
 #collectibleId {
   color: black;
 }
+
+#condition {
+  color: black;
+}

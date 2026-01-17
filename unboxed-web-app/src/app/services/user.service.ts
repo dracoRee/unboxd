@@ -83,4 +83,12 @@ export class UserService {
   getUserListings(userId: number): Observable<UserListing[]> {
     return this.http.get<UserListing[]>(`${this.apiUrl}/users/listings/${userId}`);
   }
+
+  getListing(id: number): Observable<UserListing> {
+    return this.http.get<UserListing>(`${this.apiUrl}/listings/${id}`);
+  }
+
+  updateListing(id: number, activeData: FormData): Observable<UserListing> {
+    return this.http.patch<UserListing>(`${this.apiUrl}/listings/${id}`, activeData);
+  }
 }

@@ -1444,6 +1444,88 @@ app.get('/listings/:id', async (req, res) => {
   }
 });
 
+// Update listing details
+app.patch('/listings/:id', upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'demoVideo', maxCount: 1 },
+  { name: 'receipt', maxCount: 1 }
+]), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, description, condition, referenceValue, dealMethods, seriesName, serialNumber } = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    // Check if listing exists
+    const existingListing = await prisma.userListing.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!existingListing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    const updates: any = {};
+    if (title) updates.title = title;
+    if (description) updates.description = description;
+    if (condition) updates.condition = condition;
+    if (referenceValue) updates.referenceValue = parseFloat(referenceValue);
+    if (serialNumber) updates.serialNumber = serialNumber;
+    if (seriesName) updates.seriesName = seriesName;
+
+    if (dealMethods) {
+      try {
+        updates.dealMethods = typeof dealMethods === 'string' ? JSON.parse(dealMethods) : dealMethods;
+      } catch (e) {
+        console.error('Error parsing dealMethods:', e);
+      }
+    }
+
+    // Handle file updates
+    const timestamp = Date.now();
+    const userId = existingListing.userId;
+
+    if (files?.image?.[0]) {
+      const imageFile = files.image[0];
+      updates.imageUrl = await uploadFile(
+        'collectible-images',
+        `${userId}/${timestamp}_image.${imageFile.originalname.split('.').pop()}`,
+        imageFile.buffer,
+        imageFile.mimetype
+      );
+    }
+
+    if (files?.demoVideo?.[0]) {
+      const demoVideoFile = files.demoVideo[0];
+      updates.demoVideoUrl = await uploadFile(
+        'collectible-demos',
+        `${userId}/${timestamp}_demo.${demoVideoFile.originalname.split('.').pop()}`,
+        demoVideoFile.buffer,
+        demoVideoFile.mimetype
+      );
+    }
+
+    if (files?.receipt?.[0]) {
+      const receiptFile = files.receipt[0];
+      updates.receiptUrl = await uploadFile(
+        'collectible-receipts',
+        `${userId}/${timestamp}_receipt.${receiptFile.originalname.split('.').pop()}`,
+        receiptFile.buffer,
+        receiptFile.mimetype
+      );
+    }
+
+    const updatedListing = await prisma.userListing.update({
+      where: { id: parseInt(id) },
+      data: updates
+    });
+
+    res.json(updatedListing);
+  } catch (error) {
+    console.error('Failed to update listing:', error);
+    res.status(500).json({ error: 'Failed to update listing' });
+  }
+});
+
 // Update listing availability
 app.patch('/listings/:id/availability', async (req, res) => {
   try {

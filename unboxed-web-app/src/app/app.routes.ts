@@ -24,6 +24,7 @@ export const routes: Routes = [
   { path: 'browse', component: BrowseComponent, canActivate: [authGuard] },
   { path: 'trades', component: TradesComponent, canActivate: [authGuard] },
   { path: 'trades/upload-item', component: UploadItemComponent, canActivate: [authGuard] },
+  { path: 'trades/edit-item/:id', component: UploadItemComponent, canActivate: [authGuard] },
   { path: 'wishlist', component: WishlistComponent, canActivate: [authGuard] },
   { path: 'my-collection', component: MyCollectionComponent, canActivate: [authGuard] },
   { path: 'series', component: SeriesComponent, canActivate: [authGuard] },
