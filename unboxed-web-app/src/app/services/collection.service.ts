@@ -2,12 +2,15 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { SeriesProgress, AIRecognitionResult, CollectibleItem } from '../models/collection.model';
+import { environment } from '@/environments/environment';
+
+const host_url = environment.apiBaseUrl;
 
 @Injectable({
   providedIn: 'root'
 })
 export class CollectionService {
-  private apiUrl = 'http://localhost:3000';
+  private apiUrl = host_url;
 
   constructor(private http: HttpClient) {}
 

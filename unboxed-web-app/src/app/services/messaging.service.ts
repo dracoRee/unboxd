@@ -2,6 +2,9 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { io, Socket } from 'socket.io-client';
+import { environment } from '@/environments/environment';
+
+const host_url = environment.apiBaseUrl;
 
 export interface ChatMessage {
   id: number;
@@ -26,7 +29,7 @@ export interface Conversation {
   providedIn: 'root'
 })
 export class MessagingService {
-  private apiUrl = 'http://localhost:3000';
+  private apiUrl = host_url;
   private socket: Socket;
 
   constructor(private http: HttpClient) {

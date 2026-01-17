@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { environment } from '../../environments/environment';
+import { environment } from '@/environments/environment';
+
+const host_url = environment.apiBaseUrl;
 
 export interface UserProfile {
   id: number;
@@ -17,11 +19,28 @@ export interface UserProfile {
   };
 }
 
+export interface UserListing {
+  id: number;
+  userId: number;
+  collectibleId: number | null;
+  serialNumber: string;
+  demoVideoUrl: string;
+  receiptUrl: string;
+  imageUrl?: string;
+  isAvailableForTrade: boolean;
+  createdAt: string;
+  updatedAt: string;
+  collectible?: {
+    name: string;
+    series: { name: string };
+  };
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
-  private apiUrl = 'http://localhost:3000'; // Fallback to localhost if environment not updated
+  private apiUrl = host_url; // Fallback to localhost if environment not updated
 
   constructor(private http: HttpClient) {}
 
@@ -52,5 +71,10 @@ export class UserService {
 
   getFollowing(userId: number): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/users/${userId}/following`);
+  }
+
+  listingsBuffer: UserListing[] = []; 
+  getUserListings(userId: number): Observable<UserListing[]> {
+    return this.http.get<UserListing[]>(`${this.apiUrl}/users/listings/${userId}`);
   }
 }

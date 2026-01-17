@@ -1,0 +1,110 @@
+<div class="profile-container" *ngIf="profile">
+      <div class="profile-header">
+        <div class="avatar-container">
+          <img [src]="profile.profilePicture || 'assets/default-avatar.png'" alt="Avatar" class="profile-avatar">
+          <button *ngIf="isOwnProfile" class="edit-avatar-btn" (click)="triggerFileInput()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+          <input type="file" #fileInput (change)="onFileSelected($event)" accept="image/*" class="hidden">
+        </div>
+        
+        <div class="profile-info">
+          <div class="name-row">
+            <h1>{{ profile.name }}</h1>
+            <div class="actions">
+              <button *ngIf="isOwnProfile" (click)="toggleEdit()" class="btn-secondary">
+                {{ isEditing ? 'Cancel' : 'Edit Profile' }}
+              </button>
+              <button *ngIf="!isOwnProfile" 
+                      (click)="toggleFollow()" 
+                      [class.btn-following]="profile.isFollowing"
+                      class="btn-primary">
+                {{ profile.isFollowing ? 'Following' : 'Follow' }}
+              </button>
+            </div>
+          </div>
+          
+          <p class="email" *ngIf="isOwnProfile">{{ profile.email }}</p>
+          
+          <div class="stats">
+            <div class="stat-item">
+              <strong>{{ profile._count.collection }}</strong>
+              <span>Items</span>
+            </div>
+            <div class="stat-item">
+              <strong>{{ profile._count.followedBy }}</strong>
+              <span>Followers</span>
+            </div>
+            <div class="stat-item">
+              <strong>{{ profile._count.following }}</strong>
+              <span>Following</span>
+            </div>
+          </div>
+
+          <div class="bio-section">
+            <p *ngIf="!isEditing">{{ profile.bio || 'No bio yet.' }}</p>
+            <div *ngIf="isEditing" class="edit-form">
+              <textarea [(ngModel)]="editData.bio" placeholder="Write something about yourself..."></textarea>
+              <div class="upload-status" *ngIf="selectedFile">
+                Selected: {{ selectedFile.name }}
+              </div>
+              <button (click)="saveProfile()" class="btn-primary" [disabled]="isSaving">
+                {{ isSaving ? 'Saving...' : 'Save Changes' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="profile-content">
+        <!-- Collection and other sections could go here -->
+        <div class="section-tabs">
+          <div class="tab" [class.active]="activeTab === 'collection'" (click)="activeTab = 'collection'">Collection</div>
+          <div class="tab" [class.active]="activeTab === 'listings'" (click)="activeTab = 'listings'">Listings</div>
+          <div class="tab" [class.active]="activeTab === 'activity'" (click)="activeTab = 'activity'">Activity</div>
+        </div>
+        
+        <div class="content-view" [ngSwitch]="activeTab">
+          <div *ngSwitchCase="'collection'">
+             <div class="coming-soon">
+              Collection view integration coming soon...
+            </div>
+          </div>
+          
+          <div *ngSwitchCase="'listings'">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4" *ngIf="userListings.length > 0; else noListings">
+              <div *ngFor="let listing of userListings" class="listing-card bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                <div class="aspect-square relative">
+                  <img [src]="listing.imageUrl || 'assets/placeholder-image.png'" [alt]="listing.collectible?.name || 'Listing Item'" class="w-full h-full object-cover">
+                  <span class="absolute top-2 right-2 px-2 py-1 rounded text-xs font-bold" 
+                        [ngClass]="listing.isAvailableForTrade ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
+                    {{ listing.isAvailableForTrade ? 'Available' : 'Unavailable' }}
+                  </span>
+                </div>
+                <div class="p-3">
+                  <h3 class="font-bold text-sm truncate">{{ listing.collectible?.name || 'Unknown Item' }}</h3>
+                  <p class="text-xs text-gray-500 truncate">{{ listing.collectible?.series?.name || 'Unknown Series' }}</p>
+                  <div class="mt-2 text-xs text-gray-400">
+                    Serial: {{ listing.serialNumber }}
+                  </div>
+                </div>
+              </div>
+            </div>
+            <ng-template #noListings>
+              <div class="p-8 text-center text-gray-500">
+                No listings found for this user.
+              </div>
+            </ng-template>
+          </div>
+
+           <div *ngSwitchCase="'activity'">
+             <div class="coming-soon">
+              Activity view coming soon...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>

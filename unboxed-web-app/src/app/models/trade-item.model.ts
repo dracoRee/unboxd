@@ -1,12 +1,15 @@
 export interface TradeItem {
-  item_id: string;
+  item_id: string; // UserListing.id
+  collectible_id?: string; // Collectible.id
   name: string;
   series: string;
   rarity: string;
   referenceValue: number;
   imageUrl: string;
   isFeatured: boolean;
-  ownerId?: string; // To distinguish between my items and others
+  ownerId?: string; 
+  ownerName?: string;
+  ownerAvatar?: string;
   status?: 'available' | 'pending' | 'traded';
   description: string;
   condition: string;

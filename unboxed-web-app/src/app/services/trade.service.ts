@@ -5,6 +5,9 @@ import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { TradeItem } from '../models/trade-item.model';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
+import { environment } from '@/environments/environment';
+
+const host_url = environment.apiBaseUrl;
 
 export interface TradeFilters {
   search?: string;
@@ -18,7 +21,7 @@ export interface TradeFilters {
   providedIn: 'root'
 })
 export class TradeService {
-  private apiUrl = 'http://localhost:3000';
+  private apiUrl = host_url;
   private proposeTradeSource = new Subject<TradeItem>();
   proposeTrade$ = this.proposeTradeSource.asObservable();
 
@@ -63,9 +66,10 @@ export class TradeService {
 
   /**
    * Refresh catalog by fetching items directly from Supabase
+   * Now fetches valid UserListings instead of raw collectibles
    */
   refreshCatalog() {
-    from(this.supabaseService.getItems()).pipe(
+    from(this.supabaseService.getAvailableListings()).pipe(
       map(items => items.map(item => this.mapToTradeItem(item))),
       catchError(error => {
         console.error('Error fetching items from Supabase:', error);
@@ -80,12 +84,62 @@ export class TradeService {
    * Map Supabase item to TradeItem model
    */
   private mapToTradeItem(item: any): TradeItem {
-    // Handle either raw Collectible or join result
-    const collectible = item.Collectible || item;
-    const series = collectible.Series || item.Series;
+    // If item has a nested Collectible, it's likely a UserListing or UserCollectible
+    // The getAvailableListings returns UserListing with nested Collectible
+    // But getWishlist returns Collectible directly (mapped previously) or UserWishlist which has Collectible nested
+    
+    // We need to handle:
+    // 1. UserListing (from browse) -> has .Collectible
+    // 2. Collectible (from wishlist if mapped directly?) 
+    //    Actually getWishlist maps: `data.map(row => this.mapToTradeItem(row.Collectible))`
+    //    So for Wishlist, 'item' IS the Collectible object.
+    
+    let collectible: any;
+    let listingId = '';
+    let ownerId: string | undefined;
+    let ownerName: string | undefined;
+    let ownerAvatar: string | undefined;
+
+    if (item.Collectible) {
+      // It's a UserListing (or similar wrapper)
+      collectible = item.Collectible;
+      listingId = item.id?.toString() || '';
+      // UserListing joins User
+      if (item.User) {
+        ownerId = item.User.id?.toString();
+        ownerName = item.User.name;
+        ownerAvatar = item.User.profilePicture;
+      } else {
+        // Fallback or explicit userId field
+        ownerId = item.userId?.toString();
+      }
+    } else {
+      // It's a raw Collectible (e.g. from wishlist mapping)
+      collectible = item;
+      // For raw collectibles, we don't have a specific listing ID, so we use collectible ID as fallback
+      // ideally explicit listing ID is better but this maintains back-compat for wishlist view
+      listingId = collectible.id?.toString() || ''; 
+    }
+
+    // Safety check if collectible is null (shouldn't happen with correct data)
+    if (!collectible) {
+      console.warn('Invalid item structure in mapToTradeItem', item);
+      return {
+        item_id: '',
+        name: 'Unknown Item',
+        series: 'Unknown',
+        rarity: 'Unknown',
+        referenceValue: 0,
+        imageUrl: '',
+        isFeatured: false
+      };
+    }
+
+    const series = collectible.Series || item.Series; // fallback if Series is on root (unlikely for UserListing)
     
     return {
-      item_id: collectible.id?.toString() || '',
+      item_id: listingId,
+      collectible_id: collectible.id?.toString(),
       name: collectible.name,
       series: series?.name || 'Unknown Series',
       rarity: collectible.rarity,
@@ -118,15 +172,24 @@ export class TradeService {
     const user = this.authService.currentUser();
     if (!user) return of([]);
 
-    // Note: In a real app, you'd map user.id (UUID) to your numeric ID
-    // For now we'll try to fetch based on the logged in user
+    // Note: UserCollectible relates to Series, not Collectible
+    // UserCollectible has its own name and imageUrl fields
     return from(this.supabaseService.getUserCollection(user.id)).pipe(
       map(data => data.map(row => {
-        const item = row.Collectible;
-        return {
-          ...this.mapToTradeItem(item),
+        // UserCollectible has: id, userId, seriesId, name, imageUrl, Series
+        const series = row.Series;
+        const tradeItem: TradeItem = {
+          item_id: row.id?.toString() || '',
+          name: row.name || 'Unnamed Item',
+          series: series?.name || 'Unknown Series',
+          rarity: 'Unknown', // UserCollectible doesn't have rarity, would need to join with Collectible if needed
+          referenceValue: 0, // UserCollectible doesn't have referenceValue
+          imageUrl: this.supabaseService.getImageUrl(row.imageUrl, true),
+          isFeatured: false,
+          status: 'available' as 'available' | 'pending' | 'traded',
           ownerId: row.userId.toString()
         };
+        return tradeItem;
       })),
       catchError(error => {
         console.error('Error in getMyCollection:', error);

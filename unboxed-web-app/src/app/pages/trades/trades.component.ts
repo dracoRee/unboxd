@@ -1,20 +1,10 @@
-// BUG: 1. Alert message Scan failed: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent: [404 Not Found] models/gemini-1.5-flash is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
-
-// Expected: no error and able to scan the uploaded image
-// Suspect: gemini model is not found for API version v1beta, or is not supported for generateContent.
-//            or .wep file is not supported for scanning
-//          - ai.service.ts is not ran at all, 
-
-// Possible fix: edit package.json to not just run tsx index.ts but also "start": "node services/ai.service.ts"
-//                - so, "start": "tsx index.ts && node services/ai.service.ts"
-//                - okay I tried to make "npm start" to run "tsx index.ts && node services/ai.service.ts" but the error still persists 
-
-
 import { Component, OnInit, effect, ViewChild, ElementRef } from '@angular/core';
+
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { TradeService } from '../../services/trade.service';
 import { AuthService } from '../../services/auth.service';
+import { UserService, UserListing } from '../../services/user.service';
 import { CollectionService } from '../../services/collection.service';
 import { ChatComponent } from '../../components/chat/chat.component';
 
@@ -63,12 +53,13 @@ export class TradesComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   
   trades: Trade[] = [];
-  activeTab: 'outgoing' | 'incoming' = 'outgoing';
+  myListings: UserListing[] = [];
+  activeTab: 'outgoing' | 'incoming' | 'listings' = 'outgoing';
   userId?: number;
   activeChatTradeId: number | null = null;
   isScanning = false;
   isUploaded = false; 
-
+  
   checklistItems: Array<{ key: keyof VerificationChecklist, label: string, helper: string }> = [
     { 
       key: 'reviewsChecked', 
@@ -100,6 +91,7 @@ export class TradesComponent implements OnInit {
   constructor(
     private tradeService: TradeService,
     private authService: AuthService,
+    private userService: UserService,
     private collectionService: CollectionService,
     private router: Router
   ) {
@@ -107,6 +99,7 @@ export class TradesComponent implements OnInit {
       this.userId = this.authService.backendUser()?.id;
       if (this.userId) {
         this.loadTrades();
+        this.loadListings();
       }
     });
   }
@@ -117,6 +110,13 @@ export class TradesComponent implements OnInit {
     if (!this.userId) return;
     this.tradeService.getUserTrades(this.userId).subscribe(data => {
       this.trades = data.map(trade => this.enrichTradeData(trade));
+    });
+  }
+
+  loadListings() {
+    if (!this.userId) return;
+    this.userService.getUserListings(this.userId).subscribe(listings => {
+      this.myListings = listings;
     });
   }
 

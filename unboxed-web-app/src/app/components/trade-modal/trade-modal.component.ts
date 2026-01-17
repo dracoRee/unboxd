@@ -131,8 +131,19 @@ export class TradeModalComponent implements OnInit {
     if (this.valueComparison === 'Too Low!') return;
     
     const offeredIds = Array.from(this.selectedItems).map(id => parseInt(id));
-    // For demo/prototype, receiverId is assumed based on common practices or hardcoded to another test user
-    const receiverId = 2; // Hypothetical second user in the seed
+    
+    // Use ownerId from the listing as receiver, fallback to 2 only if missing
+    const receiverId = this.targetItem.ownerId ? parseInt(this.targetItem.ownerId) : 2; 
+
+    // Backend expects Collectible ID for the target item
+    const targetId = this.targetItem.collectible_id 
+      ? parseInt(this.targetItem.collectible_id) 
+      : parseInt(this.targetItem.item_id);
+
+    // Prevent trading with yourself
+    // (Ideally handled in UI by hiding the button, but good safety check)
+    // We don't have current user ID easily available here without injecting authService, 
+    // so we assume UI handles it.
 
     this.tradeService.sendTradeOffer(receiverId, parseInt(this.targetItem.item_id), offeredIds, this.buyerPaysCash, this.cashTopUp).subscribe({
       next: (trade) => {

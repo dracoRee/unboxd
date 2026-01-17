@@ -4,6 +4,9 @@ import { Router } from '@angular/router';
 import { Observable, from, map, tap } from 'rxjs';
 import { SupabaseService } from './supabase.service';
 import { UserService } from './user.service';
+import { environment } from '@/environments/environment';
+
+const host_url = environment.apiBaseUrl;
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +14,7 @@ import { UserService } from './user.service';
 export class AuthService {
   currentUser = signal<any>(null);
   backendUser = signal<any>(null);
-  private apiUrl = 'http://localhost:3000';
+  private apiUrl = host_url;
 
   constructor(
     private supabaseService: SupabaseService, 
@@ -43,7 +46,11 @@ export class AuthService {
   }
 
   private syncWithBackend(supabaseUser: any) {
-    const name = supabaseUser.user_metadata?.name || supabaseUser.email.split('@')[0];
+    if (!supabaseUser.email) {
+      console.error('Cannot sync user: email is missing');
+      return;
+    }
+    const name = supabaseUser.user_metadata?.['name'] || supabaseUser.email.split('@')[0];
     this.userService.syncUser(supabaseUser.email, name).subscribe({
       next: (user) => {
         this.backendUser.set(user);
@@ -100,6 +107,18 @@ export class AuthService {
 
   resetPassword(data: any): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/reset-password`, data);
+  }
+
+  async isAuthenticated(): Promise<boolean> {
+    const { data: { session } } = await this.supabaseService.auth.getSession();
+    if (session) {
+      if (!this.currentUser()) {
+        this.currentUser.set(session.user);
+        this.syncWithBackend(session.user);
+      }
+      return true;
+    }
+    return false;
   }
 
   isLoggedIn(): boolean {

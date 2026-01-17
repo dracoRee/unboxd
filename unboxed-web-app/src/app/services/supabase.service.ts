@@ -55,6 +55,36 @@ export class SupabaseService {
   }
 
   /**
+   * Fetch active listings from UserListing joined with Collectible, Series, and User
+   */
+  async getAvailableListings(): Promise<any[]> {
+    console.log('Fetching available listings from Supabase...');
+    const { data, error } = await this.supabase
+      .from('UserListing')
+      .select(`
+        *,
+        Collectible (
+          *,
+          Series (*)
+        ),
+        User (
+          id,
+          name,
+          profilePicture
+        )
+      `)
+      .eq('isAvailableForTrade', true);
+
+    if (error) {
+      console.error('Error fetching listings:', error);
+      throw error;
+    }
+    
+    console.log('Fetched listed items:', data);
+    return data || [];
+  }
+
+  /**
    * Fetch all series
    */
   async getSeries(): Promise<any[]> {
@@ -90,18 +120,19 @@ export class SupabaseService {
 
   /**
    * Fetch items owned by a specific user
+   * Note: UserCollectible relates to Series, not Collectible
    */
   async getUserCollection(userId: number): Promise<any[]> {
     const { data, error } = await this.supabase
       .from('UserCollectible')
-      .select('*, Collectible(*, Series(*))')
+      .select('*, Series(*)')
       .eq('userId', userId);
 
     if (error) {
       console.error('Error fetching user collection:', error);
       throw error;
     }
-    // Flatten result to return Collectible objects with additional acquiredAt info if needed
+    // Return UserCollectible objects with Series information
     return data || [];
   }
 
