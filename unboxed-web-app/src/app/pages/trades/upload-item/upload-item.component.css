@@ -31,7 +31,7 @@ input[type="file"] + label {
   }
 }
 
-#seriesSelect {
+#seriesSelect, #modelSelect {
   color: black;
 }
 

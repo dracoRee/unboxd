@@ -24,6 +24,8 @@ export class UploadItemComponent implements OnInit {
   availableSeries: any[] = [];
   selectedSeries: string = '';
   customSeriesName: string = '';
+  availableModels: any[] = [];
+  selectedModelId: number | null = null;
   description: string = '';
   serialNumber: string = '';
   referenceValue: number | null = null;
@@ -96,6 +98,8 @@ export class UploadItemComponent implements OnInit {
       const match = this.availableSeries.find(s => s.name === this.seriesName);
       if (match) {
         this.selectedSeries = this.seriesName;
+        // Load models for the matched series
+        this.loadModelsBySeries(match.id);
       } else {
         this.selectedSeries = 'custom';
         this.customSeriesName = this.seriesName;
@@ -107,8 +111,50 @@ export class UploadItemComponent implements OnInit {
     if (this.selectedSeries !== 'custom') {
       this.seriesName = this.selectedSeries;
       this.customSeriesName = '';
+      
+      const series = this.availableSeries.find(s => s.name === this.selectedSeries);
+      if (series) {
+        this.loadModelsBySeries(series.id);
+      }
     } else {
       this.seriesName = this.customSeriesName;
+      this.availableModels = [];
+      this.selectedModelId = null;
+    }
+  }
+
+  loadModelsBySeries(seriesId: number) {
+    this.collectionService.getCollectiblesBySeries(seriesId).subscribe({
+      next: (models) => {
+        this.availableModels = models;
+        
+        // Auto-select if there's only one model
+        if (models.length === 1) {
+          this.selectedModelId = models[0].id;
+          this.onModelChange();
+        }
+        
+        // If editing and we have a collectibleId, try to match it
+        if (this.isEditing && this.existingListing?.collectibleId) {
+          this.selectedModelId = this.existingListing.collectibleId;
+          // Ensure reference value and title are updated if needed
+          this.onModelChange();
+        }
+      },
+      error: (err) => console.error('Failed to load models', err)
+    });
+  }
+
+  onModelChange() {
+    if (this.selectedModelId) {
+      const model = this.availableModels.find(m => m.id === Number(this.selectedModelId));
+      if (model) {
+        this.referenceValue = model.referenceValue;
+        // Also update title if it's empty
+        if (!this.title) {
+          this.title = model.name;
+        }
+      }
     }
   }
 
@@ -116,6 +162,15 @@ export class UploadItemComponent implements OnInit {
     if (this.selectedSeries === 'custom') {
       this.seriesName = this.customSeriesName;
     }
+  }
+
+  getCharacterLength(text: string): number {
+    if (!text) return 0;
+      return text.length;
+  }
+
+  isCharLengthValid(text: string, limit: number): boolean {
+    return this.getCharacterLength(text) <= limit;
   }
 
   loadListing(id: number) {
@@ -199,11 +254,15 @@ export class UploadItemComponent implements OnInit {
 
   isFormValid(): boolean {
     const hasDealMethod = this.dealMethods.meetup || this.dealMethods.delivery;
+    const modelValid = this.selectedSeries === 'custom' || !!this.selectedModelId;
     const basicValid = this.title.trim().length > 0 &&
            this.seriesName.trim().length > 0 &&
            this.serialNumber.trim().length > 0 && 
            this.referenceValue !== null &&
-           hasDealMethod;
+           hasDealMethod &&
+           modelValid &&
+           this.isCharLengthValid(this.title, 50) &&
+           this.isCharLengthValid(this.description, 1000);
 
     if (this.isEditing) {
         const videoValid = this.demoVideoFile !== null || !!this.existingListing?.demoVideoUrl;
@@ -238,6 +297,9 @@ export class UploadItemComponent implements OnInit {
       formData.append('userId', userId.toString());
       formData.append('title', this.title);
       formData.append('seriesName', this.seriesName);
+      if (this.selectedModelId) {
+        formData.append('collectibleId', this.selectedModelId.toString());
+      }
       formData.append('description', this.description);
       formData.append('condition', this.condition);
       formData.append('referenceValue', this.referenceValue!.toString());

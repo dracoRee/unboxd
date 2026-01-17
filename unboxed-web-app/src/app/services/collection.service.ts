@@ -38,6 +38,10 @@ export class CollectionService {
     return this.http.get<any[]>(`${this.apiUrl}/series`);
   }
 
+  getCollectiblesBySeries(seriesId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/collectibles?seriesId=${seriesId}`);
+  }
+
   deleteCollectible(collectibleId: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/collection/${collectibleId}`);
   }

@@ -480,16 +480,24 @@ app.get('/series', async (req, res) => {
 // Get all collectibles for selection
 app.get('/collectibles', async (req, res) => {
   try {
+    const { seriesId } = req.query;
+    const where: any = {};
+    if (seriesId) {
+      where.seriesId = parseInt(seriesId as string);
+    }
+
     const collectibles = await prisma.collectible.findMany({
+      where,
       select: { 
         id: true, 
         name: true, 
         imageUrl: true, 
+        referenceValue: true,
         series: { 
           select: { name: true } 
         } 
       },
-      orderBy: { series: { name: 'asc' } }
+      orderBy: { name: 'asc' }
     });
     res.json(collectibles);
   } catch (error) {
