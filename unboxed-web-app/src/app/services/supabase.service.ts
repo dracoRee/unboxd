@@ -125,7 +125,7 @@ export class SupabaseService {
   async getUserCollection(userId: number): Promise<any[]> {
     const { data, error } = await this.supabase
       .from('UserCollectible')
-      .select('*, Series(*)')
+      .select('*, Series(*), User(id, name, profilePicture)')
       .eq('userId', userId);
 
     if (error) {

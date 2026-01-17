@@ -146,6 +146,9 @@ export class TradeService {
     }
 
     const series = collectible.Series || item.Series; // fallback if Series is on root (unlikely for UserListing)
+    const resolvedName = item.User?.name || ownerName || `User_${item.userId ?? collectible.userId ?? 'NA'}`;
+    const resolvedAvatar = item.User?.profilePicture || ownerAvatar;
+    const resolvedUserId = item.userId || collectible.userId || 0;
     
     return {
       item_id: listingId,
@@ -163,9 +166,9 @@ export class TradeService {
       condition: item.condition || 'No Available Condition.',
       listedAt: item.createdAt ? new Date(item.createdAt) : new Date(),
       postedBy: {
-        id: item.userId || 0,
-        name: item.User?.name || 'Unknown User',
-        profilePicture: item.User?.profilePicture
+        id: resolvedUserId,
+        name: resolvedName,
+        profilePicture: resolvedAvatar
       }
     };
   }

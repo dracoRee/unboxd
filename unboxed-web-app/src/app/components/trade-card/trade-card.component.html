@@ -1,80 +1,101 @@
-<div class="group bg-white rounded-2xl border border-gray-200 overflow-hidden hover:shadow-xl hover:border-accent-200 transition-all duration-300 flex flex-col h-full"
-(click)="onCardClick(item)">
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300"
+     (click)="onCardClick(item)">
+  
   <!-- Image Section -->
-  <div class="relative aspect-square bg-gray-50 p-6 overflow-hidden">
-    <img [src]="item.imageUrl" [alt]="item.name" class="w-full h-full object-contain group-hover:scale-110 transition-transform duration-500">
+  <div class="relative h-48 bg-gray-100 overflow-hidden group">
+    <img 
+      [src]="item.imageUrl || 'assets/placeholder-image.png'" 
+      [alt]="item.name"
+      class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+      (click)="toggleImageZoom($event)">
     
+    <!-- Status Badge -->
+    @if (item.status) {
+      <span class="absolute top-2 left-2 px-2 py-1 rounded-full text-[10px] font-bold uppercase"
+            [ngClass]="{
+              'bg-green-100 text-green-800': item.status === 'available',
+              'bg-yellow-100 text-yellow-800': item.status === 'pending',
+              'bg-red-100 text-red-800': item.status === 'traded'
+            }">
+        {{ item.status }}
+      </span>
+    }
+
+    <!-- Rarity Badge -->
+    @if (item.rarity) {
+      <span class="absolute top-2 right-2 px-2 py-1 rounded-full text-[10px] font-bold uppercase"
+            [ngClass]="{
+              'bg-purple-100 text-purple-800': item.rarity === 'Secret',
+              'bg-blue-100 text-blue-800': item.rarity === 'Rare',
+              'bg-gray-100 text-gray-800': item.rarity !== 'Secret' && item.rarity !== 'Rare'
+            }">
+        {{ item.rarity }}
+      </span>
+    }
+
     <!-- Favourite Button -->
     <button 
       (click)="toggleFavourite($event)"
-      class="absolute top-3 right-3 p-2 rounded-full bg-white/80 backdrop-blur-sm border border-gray-100 shadow-sm hover:bg-white transition-colors"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" [class.fill-red-500]="isFavourited" [class.text-red-500]="isFavourited" [class.text-gray-400]="!isFavourited" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+      class="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white transition-all">
+      <svg xmlns="http://www.w3.org/2000/svg" 
+           class="h-4 w-4 transition-colors"
+           [ngClass]="isFavourited ? 'text-red-500 fill-red-500' : 'text-gray-400'"
+           fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
       </svg>
     </button>
-
-    <!-- Rarity Badge -->
-    <div class="absolute bottom-3 left-3">
-      <span 
-        [class.bg-purple-100]="item.rarity === 'Secret'"
-        [class.text-purple-700]="item.rarity === 'Secret'"
-        [class.bg-blue-100]="item.rarity === 'Rare'"
-        [class.text-blue-700]="item.rarity === 'Rare'"
-        [class.bg-gray-100]="item.rarity === 'Common'"
-        [class.text-gray-700]="item.rarity === 'Common'"
-        class="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider"
-      >
-        {{ item.rarity }}
-      </span>
-    </div>
   </div>
 
   <!-- Content Section -->
-  <div class="p-5 flex flex-col flex-1">
-    <div class="mb-0.5">
-      <span class="text-[10px] font-bold text-accent-600 uppercase tracking-widest">{{ item.series }}</span>
-    </div>
-    <h3 class="text-sm font-medium text-gray-700 mb-2 line-clamp-1">
-      {{ item.name }}
-    </h3>
-    <h2 class="text-lg font-bold text-gray-900 mb-1 line-clamp-1">
-      {{ item.listingTitle }}
-    </h2>
-        
-    <div class="flex items-center justify-between mb-6">
-      <div>
-        <span class="block text-[10px] text-gray-400 uppercase font-bold">Ref. Value</span>
-        <span class="text-lg font-black text-gray-900">RM {{ item.referenceValue }}</span>
-      </div>
-      <div class="text-right">
-        <span class="block text-[10px] text-gray-400 uppercase font-bold">Status</span>
-        <span class="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Available</span>
-      </div>
+  <div class="p-4">
+    <!-- Title & Series -->
+    <div class="mb-2">
+      <h3 class="font-bold text-gray-900 text-sm line-clamp-1">{{ item.listingTitle || item.name }}</h3>
+      <p class="text-xs text-indigo-600 font-medium">{{ item.series }}</p>
     </div>
 
-    <div class="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between gap-3">
-      <!-- Owner Info or Placeholders -->
-      <div class="flex items-center gap-2 mr-auto" *ngIf="item.ownerName; else noOwner">
-        <div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200 shadow-sm flex-shrink-0">
-           <img *ngIf="item.ownerAvatar" [src]="item.ownerAvatar" class="w-full h-full object-cover" [alt]="item.ownerName">
-           <span *ngIf="!item.ownerAvatar" class="text-[10px] font-bold text-gray-500">{{ item.ownerName.charAt(0).toUpperCase() }}</span>
-        </div>
-        <span class="text-xs font-bold text-gray-600 truncate max-w-[80px]" [title]="item.ownerName">{{ item.ownerName }}</span>
-      </div>
-      <ng-template #noOwner>
-        <div class="flex -space-x-2">
-          <div class="w-6 h-6 rounded-full border-2 border-white bg-gray-200 flex items-center justify-center text-[8px] font-bold">H</div>
-          <div class="w-6 h-6 rounded-full border-2 border-white bg-accent-100 flex items-center justify-center text-[8px] font-bold text-accent-700">W</div>
-        </div>
-      </ng-template>
+    <!-- Condition -->
+    @if (item.condition) {
+      <span class="inline-block px-2 py-0.5 bg-gray-100 text-gray-600 text-[10px] font-bold uppercase rounded mb-2">
+        {{ item.condition.replace('_', ' ') }}
+      </span>
+    }
 
-      <button 
-        (click)="onProposeTrade()"
-        class="flex-1 bg-gray-900 text-white hover:bg-accent-600 py-2 rounded-xl text-sm font-bold transition-all"
-      >
-        Propose Trade
-      </button>
+    <!-- Price -->
+    <div class="flex items-baseline gap-1 mb-3">
+      <span class="text-lg font-bold text-gray-900">RM{{ item.listingPrice || item.referenceValue }}</span>
+      @if (item.listingPrice && item.referenceValue && item.listingPrice !== item.referenceValue) {
+        <span class="text-xs text-gray-400 line-through">RM{{ item.referenceValue }}</span>
+      }
+    </div>
+
+    <!-- Posted By -->
+    <div class="flex items-center gap-2 pt-3 border-t border-gray-100">
+      <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
+        @if (item.postedBy.profilePicture) {
+          <img [src]="item.postedBy.profilePicture" class="w-full h-full object-cover">
+        } @else {
+          <span class="text-[10px] font-bold text-indigo-600">{{ item.postedBy.name.charAt(0) || 'U' }}</span>
+        }
+      </div>
+      <span class="text-xs text-gray-500 truncate">{{ item.postedBy.name || item.ownerName || 'Unknown' }}</span>
     </div>
   </div>
 </div>
+
+<!-- Image Zoom Modal -->
+@if (isImageZoomed) {
+  <div class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" (click)="toggleImageZoom()">
+    <div class="relative max-w-3xl max-h-[90vh]">
+      <img [src]="item.imageUrl" [alt]="item.name" class="max-w-full max-h-[90vh] object-contain rounded-lg">
+      <button 
+        (click)="toggleImageZoom($event)"
+        class="absolute top-2 right-2 w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg hover:bg-white">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  </div>
+}
