@@ -85,6 +85,9 @@ export class TradeService {
    */
   private mapToTradeItem(item: any): TradeItem {
     console.table(item);
+    // Supabase returns 'user' (lowercase) due to alias in query
+    const userData = item.User || item.user;
+    console.log('User data:', JSON.stringify(userData, null, 2));
     // If item has a nested Collectible, it's likely a UserListing or UserCollectible
     // The getAvailableListings returns UserListing with nested Collectible
     // But getWishlist returns Collectible directly (mapped previously) or UserWishlist which has Collectible nested
@@ -100,17 +103,30 @@ export class TradeService {
     let ownerId: string | undefined;
     let ownerName: string | undefined;
     let ownerAvatar: string | undefined;
+    let ownerUsername: string | undefined;
 
     if (item.Collectible) {
       // It's a UserListing (or similar wrapper)
       collectible = item.Collectible;
       listingId = item.id?.toString() || '';
-      // UserListing joins User
-      if (item.User) {
-        ownerId = item.User.id?.toString();
-        ownerName = item.User.name;
-        ownerAvatar = item.User.profilePicture;
+      // UserListing joins User (may be 'User' or 'user' depending on query alias)
+      const userObj = item.User || item.user;
+      if (userObj) {
+        ownerId = userObj.id?.toString();
+        ownerName = userObj.name;
+        ownerUsername = userObj.username;
+        // Prefer PublicUser profile picture if available (nested under User)
+        // Check if PublicUser is an array or object (Supabase relation might return array for one-to-one sometimes, or obj)
+        const publicUser = Array.isArray(userObj.PublicUser) ? userObj.PublicUser[0] : userObj.PublicUser;
+        ownerAvatar = publicUser?.profilePicture || userObj.profilePicture;
+        if (publicUser?.username) {
+          ownerUsername = publicUser.username;
+        }
+        if (publicUser?.name) {
+          ownerName = publicUser.name;
+        }
       } else {
+
         // Fallback or explicit userId field
         ownerId = item.userId?.toString();
       }
@@ -140,14 +156,17 @@ export class TradeService {
         postedBy: {
           id: collectible.userId || 0,
           name: collectible.User?.name || 'Unknown User',
+          username: collectible.User?.username,
           profilePicture: collectible.User?.profilePicture
         }
       };
     }
 
     const series = collectible.Series || item.Series; // fallback if Series is on root (unlikely for UserListing)
-    const resolvedName = item.User?.name || ownerName || `User_${item.userId ?? collectible.userId ?? 'NA'}`;
-    const resolvedAvatar = item.User?.profilePicture || ownerAvatar;
+    const userObj = item.User || item.user;
+    const resolvedName = userObj?.name || ownerName || `User_${item.userId ?? collectible.userId ?? 'NA'}`;
+    const resolvedAvatar = ownerAvatar;
+    const resolvedUsername = ownerUsername;
     const resolvedUserId = item.userId || collectible.userId || 0;
     
     return {
@@ -168,6 +187,7 @@ export class TradeService {
       postedBy: {
         id: resolvedUserId,
         name: resolvedName,
+        username: resolvedUsername,
         profilePicture: resolvedAvatar
       }
     };
@@ -184,7 +204,7 @@ export class TradeService {
   }
 
   getMyCollection(): Observable<TradeItem[]> {
-    const user = this.authService.currentUser();
+    const user = this.authService.backendUser();
     if (!user) return of([]);
 
     // Note: UserCollectible relates to Series, not Collectible
@@ -210,6 +230,7 @@ export class TradeService {
           postedBy: {
             id: row.userId || 0,
             name: row.User?.name || 'Unknown User',
+            username: row.User?.username,
             profilePicture: row.User?.profilePicture
           }
         };

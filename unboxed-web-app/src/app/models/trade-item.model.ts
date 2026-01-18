@@ -19,6 +19,7 @@ export interface TradeItem {
   postedBy: {
     id: number;
     name: string;
+    username?: string;
     profilePicture?: string;
   };
 }

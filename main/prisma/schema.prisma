@@ -10,6 +10,7 @@ datasource db {
 
 model User {
   id                Int               @id @default(autoincrement())
+  username          String?           @unique
   email             String            @unique
   name              String?
   password          String
@@ -33,6 +34,7 @@ model User {
 
 model PublicUser {
   id             Int     @id
+  username       String? @unique
   name           String
   bio            String?
   profilePicture String?
@@ -57,7 +59,6 @@ model Collectible {
   description     String?
   condition       String?
   referenceValue  Float
-  imageUrl        String
   seriesId        Int
   series          Series             @relation(fields: [seriesId], references: [id])
   trades          Trade[]

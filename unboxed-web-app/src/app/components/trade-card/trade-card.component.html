@@ -22,7 +22,7 @@
     }
 
     <!-- Rarity Badge -->
-    @if (item.rarity) {
+    <!-- @if (item.rarity) {
       <span class="absolute top-2 right-2 px-2 py-1 rounded-full text-[10px] font-bold uppercase"
             [ngClass]="{
               'bg-purple-100 text-purple-800': item.rarity === 'Secret',
@@ -31,7 +31,7 @@
             }">
         {{ item.rarity }}
       </span>
-    }
+    } -->
 
     <!-- Favourite Button -->
     <button 
@@ -76,10 +76,10 @@
         @if (item.postedBy.profilePicture) {
           <img [src]="item.postedBy.profilePicture" class="w-full h-full object-cover">
         } @else {
-          <span class="text-[10px] font-bold text-indigo-600">{{ item.postedBy.name.charAt(0) || 'U' }}</span>
+          <span class="text-[10px] font-bold text-indigo-600">{{ item.postedBy.username ? item.postedBy.username.charAt(0).toUpperCase() : (item.postedBy.name.charAt(0) || 'U') }}</span>
         }
       </div>
-      <span class="text-xs text-gray-500 truncate">{{ item.postedBy.name || item.ownerName || 'Unknown' }}</span>
+      <span class="text-xs text-gray-500 truncate">{{ item.postedBy.username ? '@' + item.postedBy.username : (item.postedBy.name || item.ownerName || 'Unknown') }}</span>
     </div>
   </div>
 </div>

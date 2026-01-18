@@ -718,18 +718,30 @@ app.post('/users/sync', async (req, res) => {
     if (!user) {
       // Create user and PublicUser in a transaction
       const result = await prisma.$transaction(async (tx) => {
+        // Generate unique username
+        let baseUsername = email.split('@')[0];
+        let username = baseUsername;
+        let counter = 0;
+        
+        while (await tx.user.findUnique({ where: { username } })) {
+          counter++;
+          username = `${baseUsername}${counter}`;
+        }
+
         const newUser = await tx.user.create({
           data: {
             email,
-            password: 'SUPABASE_AUTH_USER' // Placeholder
+            password: 'SUPABASE_AUTH_USER', // Placeholder
+            username
           },
         });
 
         // Create PublicUser entry
-        await tx.PublicUser.create({
+        await tx.publicUser.create({
           data: {
             id: newUser.id,
-            name: name || email.split('@')[0] || 'User',
+            name: name || username,
+            username: username,
             bio: null,
             profilePicture: null
           }
@@ -747,6 +759,7 @@ app.post('/users/sync', async (req, res) => {
     res.json({
       id: user?.id,
       email: user?.email,
+      username: user?.username,
       name: user?.publicUser?.name,
       // Expose public profile data from the PublicUser table so the frontend
       // (e.g. navbar avatar) can render from the public profile source of truth.
@@ -767,11 +780,15 @@ app.get('/users/search', async (req, res) => {
   try {
     const PublicUsers = await prisma.publicUser.findMany({
       where: {
-        name: { contains: q, mode: 'insensitive' }
+        OR: [
+          { name: { contains: q, mode: 'insensitive' } },
+          { username: { contains: q, mode: 'insensitive' } }
+        ]
       },
       select: { 
         id: true,
-        name: true, 
+        name: true,
+        username: true,
         profilePicture: true,
         user: {
           select: { email: true }
@@ -783,6 +800,7 @@ app.get('/users/search', async (req, res) => {
     const users = PublicUsers.map(pu => ({
       id: pu.id,
       name: pu.name,
+      username: pu.username,
       email: pu.user.email,
       profilePicture: pu.profilePicture
     }));
@@ -807,6 +825,7 @@ app.get('/users/profile/:id', async (req, res) => {
       where: { id: userId },
       select: {
         name: true,
+        username: true,
         bio: true,
         profilePicture: true,
         isVerified: true,
@@ -840,6 +859,7 @@ app.get('/users/profile/:id', async (req, res) => {
     const response = {
       id: PublicUser.user.id,
       name: PublicUser.name,
+      username: PublicUser.username,
       email: PublicUser.user.email,
       bio: PublicUser.bio,
       profilePicture: PublicUser.profilePicture,
@@ -856,28 +876,38 @@ app.get('/users/profile/:id', async (req, res) => {
 
 // Update Profile
 app.patch('/users/profile', async (req, res) => {
-  const { userId, name, bio, profilePicture } = req.body;
+  const { userId, name, bio, profilePicture, username } = req.body;
   try {
     // Update both user and PublicUser tables in a transaction
     const result = await prisma.$transaction(async (tx) => {
+      // Update User table
+      await tx.user.update({
+        where: { id: parseInt(userId) },
+        data: { name, bio, profilePicture, username }
+      });
+
       // Update PublicUser table
       const PublicUser = await tx.publicUser.upsert({
         where: { id: parseInt(userId) },
-        update: { name, bio, profilePicture },
+        update: { name, bio, profilePicture, username },
         create: { 
           id: parseInt(userId), 
           name: name || 'User', 
+          username,
           bio, 
           profilePicture 
         },
-        select: { id: true, name: true, bio: true, profilePicture: true }
+        select: { id: true, name: true, bio: true, profilePicture: true, username: true }
       });
 
       return PublicUser;
     });
 
     res.json({ ...result, id: parseInt(userId) });
-  } catch (error) {
+  } catch (error: any) {
+    if (error.code === 'P2002' && error.meta?.target?.includes('username')) {
+        return res.status(400).json({ error: 'Username already taken' });
+    }
     console.error('Profile update error:', error);
     res.status(500).json({ error: 'Failed to update profile' });
   }

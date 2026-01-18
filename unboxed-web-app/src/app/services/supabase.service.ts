@@ -67,10 +67,16 @@ export class SupabaseService {
           *,
           Series (*)
         ),
-        User (
+        user:User!UserListing_userId_fkey (
           id,
           name,
-          profilePicture
+          username,
+          profilePicture,
+          PublicUser (
+            profilePicture,
+            username,
+            name
+          )
         )
       `)
       .eq('isAvailableForTrade', true);
@@ -125,7 +131,7 @@ export class SupabaseService {
   async getUserCollection(userId: number): Promise<any[]> {
     const { data, error } = await this.supabase
       .from('UserCollectible')
-      .select('*, Series(*), User(id, name, profilePicture)')
+      .select('*, Series(*), User(id, name, username, profilePicture)')
       .eq('userId', userId);
 
     if (error) {

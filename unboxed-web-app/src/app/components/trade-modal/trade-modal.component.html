@@ -49,40 +49,42 @@
             <div class="space-y-3 border-t border-accent-200 pt-4">
               <div class="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span class="font-medium text-gray-600">Condition:</span>
+                  <span class="font-medium text-gray-600"><b>Condition:</b></span>
                   <span class="ml-2 text-gray-900">{{ targetItem.condition || 'New' }}</span>
                 </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span class="font-medium text-gray-600">Listed:</span>
+                  <span class="font-medium text-gray-600"><b>Listed:</b></span>
                   <span class="ml-2 text-gray-900">{{ getRelativeTime(targetItem.listedAt) }}</span>
                 </div>
               </div>
               
               <div>
-                <span class="font-medium text-gray-600 text-sm">Description:</span>
+                <span class="font-medium text-gray-600 text-sm"><b>Description:</b></span>
 
                 <div class="mt-1 space-y-0.5">
-                  <p
-                    *ngIf="!showFullDescription && shouldShowReadMore()"
-                    class="text-gray-900 text-sm leading-normal line-clamp-2"
-                  >
-                    {{ targetItem.description || 'No description provided.' }}
-                  </p>
+                  @if (!showFullDescription && shouldShowReadMore()) {
+                    <p class="text-gray-900 text-sm leading-normal line-clamp-2">
+                      {{ targetItem.description || 'No description provided.' }}
+                    </p>
+                  }
 
-                  <p
-                    *ngIf="showFullDescription || !shouldShowReadMore()"
-                    class="text-gray-900 text-sm leading-normal"
-                  >
-                    {{ targetItem.description || 'No description provided.' }}
-                  </p>
+                  @if (showFullDescription || !shouldShowReadMore()) {
+                    <p class="text-gray-900 text-sm leading-normal">
+                      {{ targetItem.description || 'No description provided.' }}
+                    </p>
+                  }
 
-                  <button
-                    *ngIf="shouldShowReadMore()"
-                    (click)="showFullDescription = !showFullDescription"
-                    class="text-accent-600 text-sm font-medium hover:text-accent-700 transition-colors"
-                  >
-                    {{ showFullDescription ? 'Read less' : 'Read more' }}
-                  </button>
+                  @if (shouldShowReadMore()) {
+                    <button
+                      (click)="showFullDescription = !showFullDescription"
+                      class="text-accent-600 text-sm font-medium hover:text-accent-700 transition-colors"
+                    >
+                      {{ showFullDescription ? 'Read less' : 'Read more' }}
+                    </button>
+                  }
                 </div>
               </div>
               
@@ -90,9 +92,14 @@
                 <span class="font-medium text-gray-600 text-sm">Posted by:</span>
                 <div class="flex items-center gap-2">
                   <div class="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                    <span class="text-xs font-bold text-gray-600">{{ targetItem.postedBy.name.charAt(0) || 'U' }}</span>
+                    <span class="text-xs font-bold text-gray-600">{{ targetItem.postedBy.username ? targetItem.postedBy.username.charAt(0).toUpperCase() : (targetItem.postedBy.name.charAt(0) || 'U') }}</span>
                   </div>
-                  <span class="text-sm font-medium text-gray-900">{{ targetItem.postedBy.name || 'Unknown User' }}</span>
+                  <div class="flex flex-col">
+                    <span class="text-sm font-medium text-gray-900">{{ targetItem.postedBy.name || 'Unknown User' }}</span>
+                    @if (targetItem.postedBy.username) {
+                      <span class="text-xs text-gray-500">{{ targetItem.postedBy.username }}</span>
+                    }
+                  </div>
                 </div>
               </div>
             </div>
@@ -181,11 +188,13 @@
                 <span class="text-[10px] font-black text-gray-500">RM{{ item.referenceValue }}</span>
                 
                 <!-- Selection Indicator -->
-                <div *ngIf="selectedItems.has(item.item_id)" class="absolute top-2 right-2 w-5 h-5 bg-accent-500 rounded-full flex items-center justify-center shadow-sm">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
+                @if (selectedItems.has(item.item_id)) {
+                  <div class="absolute top-2 right-2 w-5 h-5 bg-accent-500 rounded-full flex items-center justify-center shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                }
               </div>
             }
           </div>

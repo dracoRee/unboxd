@@ -51,3 +51,6 @@ input[type="file"] + label {
 #condition {
   color: black;
 }
+.progress-bar-step-2 {
+  width: 50%;
+}
