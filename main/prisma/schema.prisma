@@ -27,8 +27,8 @@ model User {
   collection        UserCollectible[]
   wishlist          WishlistItem[]
   userConversations Conversation[]    @relation("ConversationToUser")
-  User_A            User[]            @relation("UserFollows")
-  User_B            User[]            @relation("UserFollows")
+  following         User[]            @relation("UserFollows")
+  followedBy        User[]            @relation("UserFollows")
 }
 
 model PublicUser {

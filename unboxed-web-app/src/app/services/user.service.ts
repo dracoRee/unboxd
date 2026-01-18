@@ -16,6 +16,7 @@ export interface UserProfile {
     followedBy: number;
     following: number;
     collection: number;
+    listings: number;
   };
 }
 
