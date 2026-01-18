@@ -43,7 +43,7 @@ import { SeriesProgress } from '../../models/collection.model';
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         @for (series of collections; track series.seriesId) {
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow cursor-pointer" (click)="openSeriesDetail(series.seriesId)">
             <div class="p-6">
               <div class="flex justify-between items-start mb-4">
                 <h3 class="text-xl font-bold">{{ series.seriesName }}</h3>
@@ -62,7 +62,7 @@ import { SeriesProgress } from '../../models/collection.model';
               <!-- Gallery of User Items -->
               <div class="grid grid-cols-4 gap-2">
                 @for (item of series.items; track item.id) {
-                  <div class="relative group cursor-pointer" [title]="item.name">
+                  <div class="relative group" [title]="item.name">
                     <img [src]="item.imageUrl || 'assets/placeholder.png'" 
                          class="w-full aspect-square object-cover rounded-lg border border-gray-50 hover:scale-105 transition-transform">
                     <button 
@@ -77,7 +77,7 @@ import { SeriesProgress } from '../../models/collection.model';
                 }
                 <!-- Add Button Helper for Empty Slots visualization (optional) -->
                 @if (series.ownedItems < series.totalItems) {
-                   <div (click)="openAddModal(series.seriesId)" class="w-full aspect-square rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 hover:text-primary-500 hover:border-primary-300 cursor-pointer transition-colors">
+                   <div (click)="openAddModal(series.seriesId, $event)" class="w-full aspect-square rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 hover:text-primary-500 hover:border-primary-300 cursor-pointer transition-colors">
                      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                      </svg>
@@ -88,6 +88,86 @@ import { SeriesProgress } from '../../models/collection.model';
           </div>
         }
       </div>
+
+      <!-- Series Detail Modal -->
+      @if (showSeriesDetail && selectedSeries) {
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div class="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+              <div>
+                <h2 class="text-2xl font-bold">{{ selectedSeries.seriesName }}</h2>
+                <p class="text-sm text-gray-500 mt-1">
+                  {{ selectedSeries.ownedCount }} / {{ selectedSeries.totalCount }} Collectibles Owned
+                </p>
+              </div>
+              <button (click)="closeSeriesDetail()" class="text-gray-400 hover:text-gray-600">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1">
+              @if (isLoadingSeriesDetail) {
+                <div class="flex items-center justify-center py-12">
+                  <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+                </div>
+              } @else {
+              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                @for (collectible of selectedSeries.collectibles; track collectible.id) {
+                  <div class="relative group">
+                    <div class="aspect-square rounded-xl overflow-hidden border-2 transition-all"
+                         [class.border-green-500]="collectible.isOwned"
+                         [class.border-gray-200]="!collectible.isOwned"
+                         [class.opacity-50]="!collectible.isOwned">
+                      @if (collectible.imageUrl) {
+                        <img [src]="collectible.imageUrl" 
+                             class="w-full h-full object-cover"
+                             [alt]="collectible.name">
+                      } @else {
+                        <div class="w-full h-full bg-gray-100 flex items-center justify-center">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                      }
+                      @if (collectible.isOwned) {
+                        <div class="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1.5 shadow-lg">
+                          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      }
+                    </div>
+                    <div class="mt-2">
+                      <p class="text-sm font-semibold text-gray-900 truncate" [title]="collectible.name">
+                        {{ collectible.name }}
+                      </p>
+                      <div class="flex items-center justify-between mt-1">
+                        <span class="text-xs px-2 py-0.5 rounded-full"
+                              [class.bg-purple-100]="collectible.rarity === 'Rare'"
+                              [class.text-purple-700]="collectible.rarity === 'Rare'"
+                              [class.bg-blue-100]="collectible.rarity === 'Common'"
+                              [class.text-blue-700]="collectible.rarity === 'Common'"
+                              [class.bg-yellow-100]="collectible.rarity === 'Secret'"
+                              [class.text-yellow-700]="collectible.rarity === 'Secret'"
+                              [class.bg-gray-100]="!collectible.rarity || (collectible.rarity !== 'Rare' && collectible.rarity !== 'Common' && collectible.rarity !== 'Secret')"
+                              [class.text-gray-700]="!collectible.rarity || (collectible.rarity !== 'Rare' && collectible.rarity !== 'Common' && collectible.rarity !== 'Secret')">
+                          {{ collectible.rarity || 'Common' }}
+                        </span>
+                        <span class="text-xs font-medium text-gray-600">
+                          $ {{ collectible.referenceValue }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
 
       <!-- Add Item Modal -->
       @if (showAddModal) {
@@ -167,6 +247,24 @@ export class MyCollectionComponent implements OnInit {
   previewUrl: string | null = null;
   isUploading = false;
 
+  // Series Detail Modal State
+  showSeriesDetail = false;
+  selectedSeries: {
+    seriesId: number;
+    seriesName: string;
+    totalCount: number;
+    ownedCount: number;
+    collectibles: Array<{
+      id: number;
+      name: string;
+      rarity: string;
+      referenceValue: number;
+      imageUrl: string | null;
+      isOwned: boolean;
+    }>;
+  } | null = null;
+  isLoadingSeriesDetail = false;
+
   constructor(
     private collectionService: CollectionService,
     private authService: AuthService
@@ -196,7 +294,10 @@ export class MyCollectionComponent implements OnInit {
     });
   }
 
-  openAddModal(preselectedSeriesId?: number) {
+  openAddModal(preselectedSeriesId?: number, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
     this.showAddModal = true;
     if (preselectedSeriesId) {
       this.selectedSeriesId = preselectedSeriesId;
@@ -268,11 +369,54 @@ export class MyCollectionComponent implements OnInit {
     this.collectionService.deleteCollectible(collectibleId).subscribe({
       next: () => {
         this.refreshCollection(); // Refresh list - empty series will be automatically removed
+        // Refresh series detail if it's open
+        if (this.showSeriesDetail && this.selectedSeries) {
+          this.openSeriesDetail(this.selectedSeries.seriesId);
+        }
       },
       error: (err) => {
         console.error(err);
         alert('Failed to delete collectible.');
       }
     });
+  }
+
+  openSeriesDetail(seriesId: number, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!this.userId) return;
+    
+    // Find the series info from collections
+    const series = this.collections.find(s => s.seriesId === seriesId);
+    if (!series) return;
+
+    this.isLoadingSeriesDetail = true;
+    this.showSeriesDetail = true;
+
+    this.collectionService.getSeriesCollectibles(seriesId, this.userId).subscribe({
+      next: (collectibles) => {
+        const ownedCount = collectibles.filter(c => c.isOwned).length;
+        this.selectedSeries = {
+          seriesId: series.seriesId,
+          seriesName: series.seriesName,
+          totalCount: collectibles.length,
+          ownedCount: ownedCount,
+          collectibles: collectibles
+        };
+        this.isLoadingSeriesDetail = false;
+      },
+      error: (err) => {
+        console.error('Error loading series detail:', err);
+        alert('Failed to load series details.');
+        this.isLoadingSeriesDetail = false;
+        this.closeSeriesDetail();
+      }
+    });
+  }
+
+  closeSeriesDetail() {
+    this.showSeriesDetail = false;
+    this.selectedSeries = null;
   }
 }

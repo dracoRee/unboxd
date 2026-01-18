@@ -493,6 +493,7 @@ app.get('/collectibles', async (req, res) => {
         name: true, 
         imageUrl: true, 
         referenceValue: true,
+        rarity: true,
         series: { 
           select: { name: true } 
         } 
@@ -503,6 +504,65 @@ app.get('/collectibles', async (req, res) => {
   } catch (error) {
     console.error('Error fetching collectibles:', error);
     res.status(500).json({ error: 'Failed to fetch collectibles' });
+  }
+});
+
+// Get collectibles for a series with user ownership status
+app.get('/series/:seriesId/collectibles/:userId', async (req, res) => {
+  try {
+    const { seriesId, userId } = req.params;
+    
+    // Get all collectibles in the series
+    const collectibles = await prisma.collectible.findMany({
+      where: { seriesId: parseInt(seriesId) },
+      select: {
+        id: true,
+        name: true,
+        rarity: true,
+        referenceValue: true,
+        seriesId: true
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    // Get user's collectibles in this series (UserCollectible)
+    const userCollectibles = await prisma.userCollectible.findMany({
+      where: {
+        userId: parseInt(userId),
+        seriesId: parseInt(seriesId)
+      },
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true
+      }
+    });
+
+    // Create a map of owned collectible names for quick lookup
+    // Note: UserCollectible.name might match Collectible.name
+    const ownedNames = new Set(userCollectibles.map(uc => uc.name?.toLowerCase().trim()).filter(Boolean));
+    
+    // Map collectibles with ownership status
+    const collectiblesWithStatus = collectibles.map(collectible => {
+      // Check if user owns this collectible by name match
+      const isOwned = ownedNames.has(collectible.name.toLowerCase().trim());
+      
+      // Find the user's collectible image if owned
+      const userCollectible = userCollectibles.find(uc => 
+        uc.name?.toLowerCase().trim() === collectible.name.toLowerCase().trim()
+      );
+      
+      return {
+        ...collectible,
+        imageUrl: userCollectible?.imageUrl || null,
+        isOwned
+      };
+    });
+
+    res.json(collectiblesWithStatus);
+  } catch (error) {
+    console.error('Error fetching series collectibles:', error);
+    res.status(500).json({ error: 'Failed to fetch series collectibles' });
   }
 });
 
