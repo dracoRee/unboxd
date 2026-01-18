@@ -45,4 +45,8 @@ export class CollectionService {
   deleteCollectible(collectibleId: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/collection/${collectibleId}`);
   }
+
+  getSeriesCollectibles(seriesId: number, userId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/series/${seriesId}/collectibles/${userId}`);
+  }
 }

@@ -25,6 +25,24 @@ export class MyCollectionComponent implements OnInit {
   previewUrl: string | null = null;
   isUploading = false;
 
+  // Series Detail Modal State
+  showSeriesDetail = false;
+  selectedSeries: {
+    seriesId: number;
+    seriesName: string;
+    totalCount: number;
+    ownedCount: number;
+    collectibles: Array<{
+      id: number;
+      name: string;
+      rarity: string;
+      referenceValue: number;
+      imageUrl: string | null;
+      isOwned: boolean;
+    }>;
+  } | null = null;
+  isLoadingSeriesDetail = false;
+
   constructor(
     private collectionService: CollectionService,
     private authService: AuthService
@@ -54,7 +72,10 @@ export class MyCollectionComponent implements OnInit {
     });
   }
 
-  openAddModal(preselectedSeriesId?: number) {
+  openAddModal(preselectedSeriesId?: number, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
     this.showAddModal = true;
     if (preselectedSeriesId) {
       this.selectedSeriesId = preselectedSeriesId;
@@ -130,11 +151,54 @@ export class MyCollectionComponent implements OnInit {
     this.collectionService.deleteCollectible(collectibleId).subscribe({
       next: () => {
         this.refreshCollection(); // Refresh list - empty series will be automatically removed
+        // Refresh series detail if it's open
+        if (this.showSeriesDetail && this.selectedSeries) {
+          this.openSeriesDetail(this.selectedSeries.seriesId);
+        }
       },
       error: (err) => {
         console.error(err);
         alert('Failed to delete collectible.');
       }
     });
+  }
+
+  openSeriesDetail(seriesId: number, event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+    if (!this.userId) return;
+    
+    // Find the series info from collections
+    const series = this.collections.find(s => s.seriesId === seriesId);
+    if (!series) return;
+
+    this.isLoadingSeriesDetail = true;
+    this.showSeriesDetail = true;
+
+    this.collectionService.getSeriesCollectibles(seriesId, this.userId).subscribe({
+      next: (collectibles) => {
+        const ownedCount = collectibles.filter(c => c.isOwned).length;
+        this.selectedSeries = {
+          seriesId: series.seriesId,
+          seriesName: series.seriesName,
+          totalCount: collectibles.length,
+          ownedCount: ownedCount,
+          collectibles: collectibles
+        };
+        this.isLoadingSeriesDetail = false;
+      },
+      error: (err) => {
+        console.error('Error loading series detail:', err);
+        alert('Failed to load series details.');
+        this.isLoadingSeriesDetail = false;
+        this.closeSeriesDetail();
+      }
+    });
+  }
+
+  closeSeriesDetail() {
+    this.showSeriesDetail = false;
+    this.selectedSeries = null;
   }
 }

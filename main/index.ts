@@ -493,6 +493,7 @@ app.get('/collectibles', async (req, res) => {
         name: true, 
         imageUrl: true, 
         referenceValue: true,
+        rarity: true,
         series: { 
           select: { name: true } 
         } 
@@ -503,6 +504,65 @@ app.get('/collectibles', async (req, res) => {
   } catch (error) {
     console.error('Error fetching collectibles:', error);
     res.status(500).json({ error: 'Failed to fetch collectibles' });
+  }
+});
+
+// Get collectibles for a series with user ownership status
+app.get('/series/:seriesId/collectibles/:userId', async (req, res) => {
+  try {
+    const { seriesId, userId } = req.params;
+    
+    // Get all collectibles in the series
+    const collectibles = await prisma.collectible.findMany({
+      where: { seriesId: parseInt(seriesId) },
+      select: {
+        id: true,
+        name: true,
+        rarity: true,
+        referenceValue: true,
+        seriesId: true
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    // Get user's collectibles in this series (UserCollectible)
+    const userCollectibles = await prisma.userCollectible.findMany({
+      where: {
+        userId: parseInt(userId),
+        seriesId: parseInt(seriesId)
+      },
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true
+      }
+    });
+
+    // Create a map of owned collectible names for quick lookup
+    // Note: UserCollectible.name might match Collectible.name
+    const ownedNames = new Set(userCollectibles.map(uc => uc.name?.toLowerCase().trim()).filter(Boolean));
+    
+    // Map collectibles with ownership status
+    const collectiblesWithStatus = collectibles.map(collectible => {
+      // Check if user owns this collectible by name match
+      const isOwned = ownedNames.has(collectible.name.toLowerCase().trim());
+      
+      // Find the user's collectible image if owned
+      const userCollectible = userCollectibles.find(uc => 
+        uc.name?.toLowerCase().trim() === collectible.name.toLowerCase().trim()
+      );
+      
+      return {
+        ...collectible,
+        imageUrl: userCollectible?.imageUrl || null,
+        isOwned
+      };
+    });
+
+    res.json(collectiblesWithStatus);
+  } catch (error) {
+    console.error('Error fetching series collectibles:', error);
+    res.status(500).json({ error: 'Failed to fetch series collectibles' });
   }
 });
 
@@ -840,21 +900,34 @@ app.get('/users/profile/:id', async (req, res) => {
                 following: true,
                 collection: true
               }
-            },
-            followedBy: currentUserId && !isNaN(currentUserId) ? {
-              where: { id: currentUserId },
-              select: { id: true },
-              take: 1
-            } : undefined
+            }
+          }
+        },
+        _count: {
+          select: {
+            listings: true
           }
         }
       }
     });
 
     if (!PublicUser) return res.status(404).json({ error: 'User not found' });
-
-    // Flatten following status for the UI
-    const isFollowing = currentUserId ? (PublicUser.user as any).followedBy?.length > 0 : false;
+    
+    // Check if following status
+    let isFollowing = false;
+    if (currentUserId) {
+        // Query the relation to see if connection exists
+        const following = await (prisma as any).user.findUnique({
+            where: { id: currentUserId },
+            select: { 
+                following: {
+                    where: { id: userId },
+                    select: { id: true }
+                }
+            }
+        });
+        isFollowing = following?.following?.length > 0;
+    }
     
     // Construct response matching the expected format
     const response = {
@@ -864,7 +937,10 @@ app.get('/users/profile/:id', async (req, res) => {
       email: PublicUser.user.email,
       bio: PublicUser.bio,
       profilePicture: PublicUser.profilePicture,
-      _count: PublicUser.user._count,
+      _count: {
+        ...PublicUser.user._count,
+        listings: (PublicUser as any)._count.listings
+      },
       isFollowing
     };
 

@@ -10,36 +10,36 @@ datasource db {
 
 model User {
   id                Int               @id @default(autoincrement())
-  username          String?           @unique
   email             String            @unique
   name              String?
   password          String
   resetToken        String?
   resetTokenExpiry  DateTime?
   bio               String?
-  profilePicture    String?
   isVerified        Boolean           @default(false)
+  profilePicture    String?
+  username          String            @unique
+  collectibles      Collectible[]
   messages          Message[]
   publicUser        PublicUser?
   proposedTrades    Trade[]           @relation("ProposedTrades")
   receivedTrades    Trade[]           @relation("ReceivedTrades")
   collection        UserCollectible[]
-  collectibles      Collectible[]
   wishlist          WishlistItem[]
-  listings          UserListing[]
   userConversations Conversation[]    @relation("ConversationToUser")
   following         User[]            @relation("UserFollows")
   followedBy        User[]            @relation("UserFollows")
 }
 
 model PublicUser {
-  id             Int     @id
-  username       String? @unique
+  id             Int           @id
   name           String
   bio            String?
   profilePicture String?
-  isVerified     Boolean @default(false)
-  user           User    @relation(fields: [id], references: [id])
+  isVerified     Boolean       @default(false)
+  username       String?       @unique
+  user           User          @relation(fields: [id], references: [id])
+  listings       UserListing[]
 }
 
 model Series {
@@ -53,59 +53,55 @@ model Series {
 }
 
 model Collectible {
-  id              Int                @id @default(autoincrement())
-  name            String
-  rarity          String
-  description     String?
-  condition       String?
-  referenceValue  Float
-  seriesId        Int
-  series          Series             @relation(fields: [seriesId], references: [id])
-  trades          Trade[]
-  offeredIn       TradeOfferedItem[]
-  wishlistedBy    WishlistItem[]
-  userListings    UserListing[]
-  userId          Int?
-  user            User?              @relation(fields: [userId], references: [id])
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @default(now()) @updatedAt
+  id             Int                @id @default(autoincrement())
+  name           String
+  rarity         String
+  referenceValue Float
+  seriesId       Int
+  condition      String?
+  createdAt      DateTime           @default(now())
+  description    String?
+  updatedAt      DateTime           @default(now()) @updatedAt
+  userId         Int?
+  series         Series             @relation(fields: [seriesId], references: [id])
+  user           User?              @relation(fields: [userId], references: [id])
+  trades         Trade[]
+  offeredIn      TradeOfferedItem[]
+  userListings   UserListing[]
+  wishlistedBy   WishlistItem[]
 }
 
 model UserCollectible {
-  id       Int    @id @default(autoincrement())
+  id       Int     @id @default(autoincrement())
   userId   Int
   seriesId Int
-  name          String?
-  imageUrl      String
-  series   Series @relation(fields: [seriesId], references: [id])
-  user     User   @relation(fields: [userId], references: [id])
+  imageUrl String
+  name     String?
+  series   Series  @relation(fields: [seriesId], references: [id])
+  user     User    @relation(fields: [userId], references: [id])
 }
 
 model UserListing {
-  id                  Int         @id @default(autoincrement())
+  id                  Int              @id @default(autoincrement())
   userId              Int
   collectibleId       Int?
-  title               String              @default("Untitled Listing")
   serialNumber        String
   demoVideoUrl        String
   receiptUrl          String
   imageUrl            String?
-  description         String              @default("No description provided")
-
-  condition           ListingCondition    @default(BRAND_NEW)
-  
+  isAvailableForTrade Boolean          @default(true)
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  condition           ListingCondition @default(BRAND_NEW)
+  description         String           @default("No description provided")
+  title               String           @default("Untitled Listing")
+  dealMethods         String[]         @default([])
   referenceValue      Float?
-  dealMethods         String[]            @default([])
   seriesName          String?
+  status              ListingStatus    @default(AVAILABLE)
+  collectible         Collectible?     @relation(fields: [collectibleId], references: [id])
+  user                PublicUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  isAvailableForTrade Boolean     @default(true)
-  status              ListingStatus @default(AVAILABLE)
-  createdAt           DateTime    @default(now())
-  updatedAt           DateTime    @updatedAt
-  
-  user                User        @relation(fields: [userId], references: [id])
-  collectible         Collectible? @relation(fields: [collectibleId], references: [id])
-  
   @@index([userId])
   @@index([collectibleId])
   @@index([isAvailableForTrade])
@@ -158,9 +154,9 @@ model Message {
   tradeId        Int?
   senderId       Int
   content        String
-  imageUrl       String?
   createdAt      DateTime      @default(now())
   conversationId Int?
+  imageUrl       String?
   conversation   Conversation? @relation(fields: [conversationId], references: [id])
   sender         User          @relation(fields: [senderId], references: [id])
   trade          Trade?        @relation(fields: [tradeId], references: [id])
