@@ -16,6 +16,7 @@ export class TradeModalComponent implements OnInit {
   @Output() close = new EventEmitter<void>();
   @Output() tradeSent = new EventEmitter<any>();
 
+  atSymbol = '@';
   myCollection: TradeItem[] = [];
   selectedItems: Set<string> = new Set();
   showImageZoom = false;

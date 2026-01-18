@@ -47,6 +47,9 @@ export class TradeCardComponent {
   }
 
   onCardClick(item: TradeItem) {
+    console.log(item.postedBy.profilePicture)
+    console.log(item.postedBy.username)
+    console.log(item.postedBy.name)
     console.log('Card clicked:', item);
     // For example, open the trade modal:
     this.tradeService.proposeTrade(item);

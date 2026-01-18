@@ -67,16 +67,12 @@ export class SupabaseService {
           *,
           Series (*)
         ),
-        user:User!UserListing_userId_fkey (
+        PublicUser:userId (
           id,
-          name,
-          username,
           profilePicture,
-          PublicUser (
-            profilePicture,
-            username,
-            name
-          )
+          username,
+          name
+        )
         )
       `)
       .eq('isAvailableForTrade', true);

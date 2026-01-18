@@ -109,26 +109,36 @@ export class TradeService {
       // It's a UserListing (or similar wrapper)
       collectible = item.Collectible;
       listingId = item.id?.toString() || '';
-      // UserListing joins User (may be 'User' or 'user' depending on query alias)
-      const userObj = item.User || item.user;
-      if (userObj) {
-        ownerId = userObj.id?.toString();
-        ownerName = userObj.name;
-        ownerUsername = userObj.username;
-        // Prefer PublicUser profile picture if available (nested under User)
-        // Check if PublicUser is an array or object (Supabase relation might return array for one-to-one sometimes, or obj)
-        const publicUser = Array.isArray(userObj.PublicUser) ? userObj.PublicUser[0] : userObj.PublicUser;
-        ownerAvatar = publicUser?.profilePicture || userObj.profilePicture;
-        if (publicUser?.username) {
-          ownerUsername = publicUser.username;
-        }
-        if (publicUser?.name) {
-          ownerName = publicUser.name;
-        }
+      
+      // Handle user information
+      // 1. Check for PublicUser at the root (from getAvailableListings)
+      // 2. Check for User/user object (legacy or other queries)
+      
+      if (item.PublicUser) {
+        ownerId = item.PublicUser.id?.toString();
+        ownerName = item.PublicUser.name;
+        ownerUsername = item.PublicUser.username;
+        ownerAvatar = item.PublicUser.profilePicture;
       } else {
-
-        // Fallback or explicit userId field
-        ownerId = item.userId?.toString();
+        const userObj = item.User || item.user;
+        if (userObj) {
+          ownerId = userObj.id?.toString();
+          ownerName = userObj.name;
+          ownerUsername = userObj.username;
+          // Prefer PublicUser profile picture if available (nested under User)
+          // Check if PublicUser is an array or object (Supabase relation might return array for one-to-one sometimes, or obj)
+          const publicUser = Array.isArray(userObj.PublicUser) ? userObj.PublicUser[0] : userObj.PublicUser;
+          ownerAvatar = publicUser?.profilePicture || userObj.profilePicture;
+          if (publicUser?.username) {
+            ownerUsername = publicUser.username;
+          }
+          if (publicUser?.name) {
+            ownerName = publicUser.name;
+          }
+        } else {
+          // Fallback or explicit userId field
+          ownerId = item.userId?.toString();
+        }
       }
     } else {
       // It's a raw Collectible (e.g. from wishlist mapping)
@@ -156,8 +166,8 @@ export class TradeService {
         postedBy: {
           id: collectible.userId || 0,
           name: collectible.User?.name || 'Unknown User',
-          username: collectible.User?.username,
-          profilePicture: collectible.User?.profilePicture
+          username: collectible.PublicUser?.username,
+          profilePicture: collectible.PublicUser?.profilePicture
         }
       };
     }
@@ -230,8 +240,8 @@ export class TradeService {
           postedBy: {
             id: row.userId || 0,
             name: row.User?.name || 'Unknown User',
-            username: row.User?.username,
-            profilePicture: row.User?.profilePicture
+            username: row.PublicUser?.username,
+            profilePicture: row.PublicUser?.profilePicture
           }
         };
         return tradeItem;
