@@ -510,7 +510,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
   try {
-    const bucketName = 'collectibles';
+    const bucketName = 'users-collection';
     const { data: buckets } = await supabaseAdmin.storage.listBuckets();
     
     if (!buckets?.find(b => b.name === bucketName)) {
@@ -518,7 +518,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
       const { error: createError } = await supabaseAdmin.storage.createBucket(bucketName, {
         public: true,
         fileSizeLimit: 5242880, // 5MB
-        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp']
+        allowedMimeTypes: ['image/png', 'image/jpeg', 'image/webp', 'image/avif']
       });
       if (createError) {
         console.error('Failed to create bucket:', createError);
@@ -537,11 +537,12 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     if (error) throw error;
 
     const { data: { publicUrl } } = supabaseAdmin.storage
-      .from('collectibles')
+      .from(bucketName)
       .getPublicUrl(fileName);
 
     res.json({ url: publicUrl });
   } catch (error) {
+
     console.error('Upload error:', error);
     res.status(500).json({ error: 'Upload failed' });
   }

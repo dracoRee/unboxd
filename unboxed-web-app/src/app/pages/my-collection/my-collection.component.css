@@ -1,0 +1,19 @@
+.purple-button {
+  background-color: #800080; /* A standard purple color */
+  color: white; /* White text for contrast */
+  padding: 15px 30px; /* Space inside the button */
+  border: none; /* Remove default border */
+  border-radius: 8px; /* Rounded corners */
+  cursor: pointer; /* Change cursor to a hand icon on hover */
+  font-size: 16px; /* Text size */
+  transition: background-color 0.3s ease; /* Smooth transition for hover effect */
+}
+
+.purple-button:hover {
+  background-color: #9370DB; /* A lighter purple (MediumPurple) on hover */
+}
+
+.purple-button:active {
+  background-color: #660066; /* A darker purple when clicked */
+  transform: translateY(1px); /* Slight press effect */
+}
