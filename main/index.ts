@@ -1379,21 +1379,31 @@ app.patch('/users/profile', async (req, res) => {
     // Update both user and PublicUser tables in a transaction
     const result = await prisma.$transaction(async (tx) => {
       // Update User table
-      await tx.user.update({
+      const updatedUser = await tx.user.update({
         where: { id: parseInt(userId) },
-        data: { name, bio, profilePicture, username }
+        data: { 
+          ...(name !== undefined && { name }),
+          ...(bio !== undefined && { bio }),
+          ...(profilePicture !== undefined && { profilePicture }),
+          ...(username !== undefined && { username })
+        }
       });
 
       // Update PublicUser table
       const PublicUser = await tx.publicUser.upsert({
         where: { id: parseInt(userId) },
-        update: { name, bio, profilePicture, username },
+        update: { 
+          ...(name !== undefined && { name }),
+          ...(bio !== undefined && { bio }),
+          ...(profilePicture !== undefined && { profilePicture }),
+          ...(username !== undefined && { username })
+        },
         create: { 
           id: parseInt(userId), 
-          name: name || 'User', 
-          username,
-          bio, 
-          profilePicture 
+          name: name || updatedUser.name || 'User', 
+          username: username || updatedUser.username,
+          bio: bio || updatedUser.bio, 
+          profilePicture: profilePicture || updatedUser.profilePicture 
         },
         select: { id: true, name: true, bio: true, profilePicture: true, username: true }
       });
