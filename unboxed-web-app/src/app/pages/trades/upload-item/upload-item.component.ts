@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -29,6 +29,14 @@ export class UploadItemComponent implements OnInit {
   description: string = '';
   serialNumber: string = '';
   referenceValue: number | null = null;
+  
+  // Searchable dropdown state
+  seriesSearchTerm: string = '';
+  modelSearchTerm: string = '';
+  showSeriesDropdown: boolean = false;
+  showModelDropdown: boolean = false;
+  filteredSeries: any[] = [];
+  filteredModels: any[] = [];
   
   condition: string = 'BRAND_NEW';
   conditionOptions = [
@@ -83,6 +91,21 @@ export class UploadItemComponent implements OnInit {
     this.loadSeries();
   }
 
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    
+    // Close series dropdown if clicking outside
+    if (!target.closest('#seriesSearch') && !target.closest('.absolute.z-50')) {
+      this.showSeriesDropdown = false;
+    }
+    
+    // Close model dropdown if clicking outside
+    if (!target.closest('#modelSearch') && !target.closest('.absolute.z-50')) {
+      this.showModelDropdown = false;
+    }
+  }
+
   loadSeries() {
     this.collectionService.getSeries().subscribe({
       next: (series) => {
@@ -98,6 +121,7 @@ export class UploadItemComponent implements OnInit {
       const match = this.availableSeries.find(s => s.name === this.seriesName);
       if (match) {
         this.selectedSeries = this.seriesName;
+        this.seriesSearchTerm = this.seriesName;
         // Load models for the matched series
         this.loadModelsBySeries(match.id);
       } else {
@@ -127,16 +151,22 @@ export class UploadItemComponent implements OnInit {
     this.collectionService.getCollectiblesBySeries(seriesId).subscribe({
       next: (models) => {
         this.availableModels = models;
+        this.filteredModels = models;
         
         // Auto-select if there's only one model
         if (models.length === 1) {
           this.selectedModelId = models[0].id;
+          this.modelSearchTerm = models[0].name;
           this.onModelChange();
         }
         
         // If editing and we have a collectibleId, try to match it
         if (this.isEditing && this.existingListing?.collectibleId) {
           this.selectedModelId = this.existingListing.collectibleId;
+          const matchedModel = models.find(m => m.id === this.existingListing.collectibleId);
+          if (matchedModel) {
+            this.modelSearchTerm = matchedModel.name;
+          }
           // Ensure reference value and title are updated if needed
           this.onModelChange();
         }
@@ -384,5 +414,66 @@ export class UploadItemComponent implements OnInit {
     if (this.referenceValue !== null && this.referenceValue !== undefined) {
       this.referenceValue = parseFloat(this.referenceValue.toFixed(2));
     }
+  }
+
+  // Series dropdown methods
+  onSeriesSearchChange(): void {
+    const term = this.seriesSearchTerm.toLowerCase();
+    this.filteredSeries = this.availableSeries.filter(series => 
+      series.name.toLowerCase().includes(term)
+    );
+  }
+
+  openSeriesDropdown(): void {
+    this.showSeriesDropdown = true;
+    this.filteredSeries = this.availableSeries;
+  }
+
+  selectSeriesFromDropdown(series: any): void {
+    this.selectedSeries = series.name;
+    this.seriesName = series.name;
+    this.seriesSearchTerm = series.name;
+    this.customSeriesName = '';
+    this.showSeriesDropdown = false;
+    
+    if (series.id) {
+      this.loadModelsBySeries(series.id);
+    }
+  }
+
+  selectCustomSeries(): void {
+    this.selectedSeries = 'custom';
+    this.showSeriesDropdown = false;
+    this.seriesSearchTerm = '';
+    this.availableModels = [];
+    this.selectedModelId = null;
+  }
+
+  // Model dropdown methods
+  onModelSearchChange(): void {
+    const term = this.modelSearchTerm.toLowerCase();
+    this.filteredModels = this.availableModels.filter(model => 
+      model.name.toLowerCase().includes(term)
+    );
+  }
+
+  openModelDropdown(): void {
+    if (!this.selectedSeries || this.selectedSeries === 'custom') {
+      return;
+    }
+    this.showModelDropdown = true;
+    this.filteredModels = this.availableModels;
+  }
+
+  selectModelFromDropdown(model: any): void {
+    this.selectedModelId = model.id;
+    this.modelSearchTerm = model.name;
+    this.showModelDropdown = false;
+    this.onModelChange();
+  }
+
+  closeDropdowns(): void {
+    this.showSeriesDropdown = false;
+    this.showModelDropdown = false;
   }
 }

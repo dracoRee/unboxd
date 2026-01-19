@@ -133,30 +133,101 @@
               <!-- Series Selection -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Series*</label>
-                <select [(ngModel)]="selectedSeriesId" class="w-full rounded-xl border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
-                  <option [ngValue]="null" disabled>Select Series</option>
-                  @for (s of seriesList; track s.id) {
-                    <option [value]="s.id">{{ s.name }}</option>
+                <div class="relative">
+                  <input
+                    type="text"
+                    id="seriesSearch"
+                    [(ngModel)]="seriesSearchTerm"
+                    name="seriesSearch"
+                    (input)="onSeriesSearchChange()"
+                    (focus)="openSeriesDropdown()"
+                    placeholder="Search or select a series..."
+                    autocomplete="off"
+                    class="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all"
+                    required>
+                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                  </div>
+                  
+                  @if (showSeriesDropdown) {
+                    <div class="series-dropdown absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                      @if (filteredSeries.length > 0) {
+                        @for (series of filteredSeries; track series.id) {
+                          <div 
+                            (click)="selectSeriesFromDropdown(series)"
+                            class="px-4 py-3 hover:bg-indigo-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0">
+                            <p class="text-sm font-medium text-gray-900">{{ series.name }}</p>
+                          </div>
+                        }
+                      } @else {
+                        <div class="px-4 py-3 text-sm text-gray-500 text-center">
+                          No series found
+                        </div>
+                      }
+                    </div>
                   }
-                </select>
+                </div>
+              </div>
+
+              <!-- Model Name Selection -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Model Name*</label>
+                <div class="relative">
+                  <input
+                    type="text"
+                    id="modelSearch"
+                    [(ngModel)]="modelSearchTerm"
+                    name="modelSearch"
+                    (input)="onModelSearchChange()"
+                    (focus)="openModelDropdown()"
+                    [disabled]="!selectedSeriesId"
+                    [placeholder]="!selectedSeriesId ? 'Select a series first...' : 'Search or select a model...'"
+                    autocomplete="off"
+                    class="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all disabled:bg-gray-100 disabled:text-gray-500"
+                    required>
+                  <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                  </div>
+                  
+                  @if (showModelDropdown && selectedSeriesId) {
+                    <div class="model-dropdown absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                      @if (filteredModels.length > 0) {
+                        @for (model of filteredModels; track model.id) {
+                          <div 
+                            (click)="selectModelFromDropdown(model)"
+                            class="px-4 py-3 hover:bg-indigo-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0">
+                            <p class="text-sm font-medium text-gray-900">{{ model.name }}</p>
+                            @if (model.rarity) {
+                              <p class="text-xs text-gray-500 mt-1">{{ model.rarity }}</p>
+                            }
+                          </div>
+                        }
+                      } @else {
+                        <div class="px-4 py-3 text-sm text-gray-500 text-center">
+                          No models found for this series
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
               </div>
 
               <!-- Name Input -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Name (Optional)</label>
-                <input type="text" [(ngModel)]="newItemName" placeholder="e.g. Secret Chaser" class="w-full rounded-xl border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
+                <input type="text" [(ngModel)]="newItemName" placeholder="e.g. Secret Chaser" class="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
               </div>
 
               <!-- Serial Number -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Serial Number*</label>
-                <input type="text" [(ngModel)]="serialNumber" placeholder="e.g. #042/100" class="w-full rounded-xl border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
+                <input type="text" [(ngModel)]="serialNumber" placeholder="e.g. #042/100" class="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
               </div>
 
               <!-- Condition -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Condition*</label>
-                <select [(ngModel)]="condition" class="w-full rounded-xl border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
+                <select [(ngModel)]="condition" class="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
                   @for (c of conditionOptions; track c) {
                     <option [value]="c">{{ c }}</option>
                   }
@@ -166,13 +237,13 @@
               <!-- Reference Value -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Reference Value ($)*</label>
-                <input type="number" [(ngModel)]="referenceValue" (blur)="formatReferenceValue()" placeholder="0.00" step="0.01" class="w-full rounded-xl border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
+                <input type="number" [(ngModel)]="referenceValue" (blur)="formatReferenceValue()" placeholder="0.00" step="0.01" class="w-full px-4 py-3 rounded-xl bg-white text-gray-900 border border-gray-300 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
               </div>
 
               <!-- Demo Video -->
               <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Demo Video*</label>
-                <input type="file" (change)="onFileSelected($event, 'video')" accept="video/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100">
+                <input type="file" (change)="onFileSelected($event, 'video')" accept="video/*" class="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
                 @if (selectedDemoVideo) {
                     <p class="mt-1 text-xs text-green-600">New Video selected: {{ selectedDemoVideo.name }}</p>
                 }
@@ -184,7 +255,7 @@
               <!-- Receipt -->
               <div>
                  <label class="block text-sm font-medium text-gray-700 mb-1">Receipt/Proof of Purchase*</label>
-                 <input type="file" (change)="onFileSelected($event, 'receipt')" accept="image/*,application/pdf" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100">
+                 <input type="file" (change)="onFileSelected($event, 'receipt')" accept="image/*,application/pdf" class="w-full px-4 py-3 text-sm text-gray-700 bg-white border border-gray-300 rounded-xl file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100 focus:border-primary-500 focus:ring focus:ring-primary-200 transition-all">
                  @if (selectedReceipt) {
                     <p class="mt-1 text-xs text-green-600">New File selected: {{ selectedReceipt.name }}</p>
                  }

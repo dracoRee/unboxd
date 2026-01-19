@@ -17,10 +17,10 @@ model User {
   resetTokenExpiry  DateTime?
   bio               String?
   isVerified        Boolean           @default(false)
-  phoneVerified     Boolean           @default(false)
   profilePicture    String?
   username          String            @unique
   createdAt         DateTime          @default(now())
+  phoneVerified     Boolean           @default(false)
   ratingAvg         Float             @default(0)
   ratingCount       Int               @default(0)
   collectibles      Collectible[]
@@ -29,12 +29,12 @@ model User {
   proposedTrades    Trade[]           @relation("ProposedTrades")
   receivedTrades    Trade[]           @relation("ReceivedTrades")
   collection        UserCollectible[]
+  ratingsReceived   UserRating[]      @relation("RatingsReceived")
+  ratingsGiven      UserRating[]      @relation("RatingsGiven")
   wishlist          WishlistItem[]
   userConversations Conversation[]    @relation("ConversationToUser")
-  following         User[]            @relation("UserFollows")
-  followedBy        User[]            @relation("UserFollows")
-  ratingsGiven      UserRating[]      @relation("RatingsGiven")
-  ratingsReceived   UserRating[]      @relation("RatingsReceived")
+  User_A            User[]            @relation("UserFollows")
+  User_B            User[]            @relation("UserFollows")
 }
 
 model PublicUser {
@@ -77,19 +77,18 @@ model Collectible {
 }
 
 model UserCollectible {
-  id             Int              @id @default(autoincrement())
+  id             Int               @id @default(autoincrement())
   userId         Int
   seriesId       Int
   imageUrl       String
   name           String?
-  serialNumber   String?
+  condition      ListingCondition? @default(BRAND_NEW)
   demoVideoUrl   String?
   receiptUrl     String?
-  quantity       Int              @default(1)
-  condition      ListingCondition? @default(BRAND_NEW)
   referenceValue Float?
-  series         Series           @relation(fields: [seriesId], references: [id])
-  user           User             @relation(fields: [userId], references: [id])
+  serialNumber   String?
+  series         Series            @relation(fields: [seriesId], references: [id])
+  user           User              @relation(fields: [userId], references: [id])
 }
 
 model UserListing {
@@ -175,6 +174,22 @@ model Message {
   trade          Trade?        @relation(fields: [tradeId], references: [id])
 }
 
+model UserRating {
+  id        Int      @id @default(autoincrement())
+  tradeId   Int
+  raterId   Int
+  rateeId   Int
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now())
+  ratee     User     @relation("RatingsReceived", fields: [rateeId], references: [id])
+  rater     User     @relation("RatingsGiven", fields: [raterId], references: [id])
+  trade     Trade    @relation(fields: [tradeId], references: [id])
+
+  @@unique([tradeId, raterId])
+  @@index([rateeId])
+}
+
 enum ListingStatus {
   AVAILABLE
   SOLD
@@ -186,20 +201,4 @@ enum ListingCondition {
   LIGHTLY_USED
   WELL_USED
   HEAVILY_USED
-}
-
-model UserRating {
-  id        Int      @id @default(autoincrement())
-  tradeId   Int
-  raterId   Int
-  rateeId   Int
-  score     Int      // 1-5
-  comment   String?
-  createdAt DateTime @default(now())
-  trade     Trade    @relation(fields: [tradeId], references: [id])
-  rater     User     @relation("RatingsGiven", fields: [raterId], references: [id])
-  ratee     User     @relation("RatingsReceived", fields: [rateeId], references: [id])
-
-  @@unique([tradeId, raterId])
-  @@index([rateeId])
 }

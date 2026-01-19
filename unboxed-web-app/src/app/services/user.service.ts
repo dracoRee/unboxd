@@ -14,8 +14,8 @@ export interface UserProfile {
   profilePicture?: string;
   isFollowing?: boolean;
   _count: {
-    followedBy: number;
-    following: number;
+    User_A: number;
+    User_B: number;
     collection: number;
     listings: number;
   };

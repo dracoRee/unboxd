@@ -1,4 +1,4 @@
-import { Component, OnInit, effect } from '@angular/core';
+import { Component, OnInit, effect, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CollectionService } from '../../services/collection.service';
@@ -20,10 +20,20 @@ export class MyCollectionComponent implements OnInit {
   showAddModal = false;
   seriesList: any[] = [];
   selectedSeriesId: number | null = null;
+  selectedModelId: number | null = null;
+  availableModels: any[] = [];
   newItemName = '';
   serialNumber = '';
   condition = 'Mint';
   referenceValue: number | null = null;
+  
+  // Searchable dropdown state
+  seriesSearchTerm: string = '';
+  modelSearchTerm: string = '';
+  showSeriesDropdown: boolean = false;
+  showModelDropdown: boolean = false;
+  filteredSeries: any[] = [];
+  filteredModels: any[] = [];
   
   selectedFile: File | null = null;
   previewUrl: string | null = null;
@@ -81,6 +91,19 @@ export class MyCollectionComponent implements OnInit {
     this.loadSeries();
   }
 
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    
+    if (!target.closest('#seriesSearch') && !target.closest('.series-dropdown')) {
+      this.showSeriesDropdown = false;
+    }
+    
+    if (!target.closest('#modelSearch') && !target.closest('.model-dropdown')) {
+      this.showModelDropdown = false;
+    }
+  }
+
   loadSeries() {
     this.collectionService.getSeries().subscribe(data => {
       this.seriesList = data;
@@ -103,6 +126,11 @@ export class MyCollectionComponent implements OnInit {
     this.showAddModal = true;
     if (preselectedSeriesId) {
       this.selectedSeriesId = preselectedSeriesId;
+      const series = this.seriesList.find(s => s.id === preselectedSeriesId);
+      if (series) {
+        this.seriesSearchTerm = series.name;
+        this.loadModelsBySeries(preselectedSeriesId);
+      }
     }
   }
 
@@ -143,11 +171,17 @@ export class MyCollectionComponent implements OnInit {
     this.existingReceiptUrl = null;
     this.newItemName = '';
     this.selectedSeriesId = null;
+    this.selectedModelId = null;
     this.serialNumber = '';
     this.condition = this.conditionOptions[0];
     this.referenceValue = null;
     this.editingCollectibleId = null;
     this.formMode = 'add';
+    this.seriesSearchTerm = '';
+    this.modelSearchTerm = '';
+    this.availableModels = [];
+    this.filteredSeries = [];
+    this.filteredModels = [];
   }
 
   formatReferenceValue() {
@@ -295,5 +329,62 @@ export class MyCollectionComponent implements OnInit {
   closeSeriesDetail() {
     this.showSeriesDetail = false;
     this.selectedSeries = null;
+  }
+
+  // Series dropdown methods
+  onSeriesSearchChange(): void {
+    const term = this.seriesSearchTerm.toLowerCase();
+    this.filteredSeries = this.seriesList.filter(series => 
+      series.name.toLowerCase().includes(term)
+    );
+  }
+
+  openSeriesDropdown(): void {
+    this.showSeriesDropdown = true;
+    this.filteredSeries = this.seriesList;
+  }
+
+  selectSeriesFromDropdown(series: any): void {
+    this.selectedSeriesId = series.id;
+    this.seriesSearchTerm = series.name;
+    this.showSeriesDropdown = false;
+    this.loadModelsBySeries(series.id);
+  }
+
+  loadModelsBySeries(seriesId: number): void {
+    this.collectionService.getCollectiblesBySeries(seriesId).subscribe({
+      next: (models) => {
+        this.availableModels = models;
+        this.filteredModels = models;
+      },
+      error: (err) => console.error('Failed to load models', err)
+    });
+  }
+
+  // Model dropdown methods
+  onModelSearchChange(): void {
+    const term = this.modelSearchTerm.toLowerCase();
+    this.filteredModels = this.availableModels.filter(model => 
+      model.name.toLowerCase().includes(term)
+    );
+  }
+
+  openModelDropdown(): void {
+    if (!this.selectedSeriesId) return;
+    this.showModelDropdown = true;
+    this.filteredModels = this.availableModels;
+  }
+
+  selectModelFromDropdown(model: any): void {
+    this.selectedModelId = model.id;
+    this.modelSearchTerm = model.name;
+    this.newItemName = model.name;
+    this.referenceValue = model.referenceValue || this.referenceValue;
+    this.showModelDropdown = false;
+  }
+
+  closeDropdowns(): void {
+    this.showSeriesDropdown = false;
+    this.showModelDropdown = false;
   }
 }

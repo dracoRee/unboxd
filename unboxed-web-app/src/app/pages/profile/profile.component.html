@@ -37,15 +37,15 @@
           
           <div class="stats">
             <div class="stat-item">
-              <strong>{{ profile._count.listings }}</strong>
+              <strong>{{ profile._count.listings || 0 }}</strong>
               <span>Listings</span>
             </div>
             <div class="stat-item">
-              <strong>{{ profile._count.followedBy }}</strong>
+              <strong>{{ profile._count.User_B || 0 }}</strong>
               <span>Followers</span>
             </div>
             <div class="stat-item">
-              <strong>{{ profile._count.following }}</strong>
+              <strong>{{ profile._count.User_A || 0 }}</strong>
               <span>Following</span>
             </div>
           </div>

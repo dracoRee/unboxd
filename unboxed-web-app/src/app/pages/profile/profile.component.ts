@@ -130,14 +130,14 @@ export class ProfileComponent implements OnInit {
       this.userService.unfollowUser(currentUserId, this.profile.id).subscribe(() => {
         if (this.profile) {
           this.profile.isFollowing = false;
-          this.profile._count.followedBy--;
+          this.profile._count.User_B--;
         }
       });
     } else {
       this.userService.followUser(currentUserId, this.profile.id).subscribe(() => {
         if (this.profile) {
           this.profile.isFollowing = true;
-          this.profile._count.followedBy++;
+          this.profile._count.User_B++;
         }
       });
     }

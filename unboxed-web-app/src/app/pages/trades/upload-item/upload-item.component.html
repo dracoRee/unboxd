@@ -66,7 +66,7 @@
               [(ngModel)]="title" 
               name="title"
               placeholder="e.g. Rare Labubu Secret Edition"
-              class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white text-gray-900"
               [class.border-red-500]="getCharacterLength(title) > 50"
               [class.border-gray-300]="getCharacterLength(title) <= 50"
               required>
@@ -77,26 +77,48 @@
 
           <!-- Series Name -->
           <div class="mb-4">
-            <label for="seriesSelect" class="block text-sm font-semibold text-gray-700 mb-2">
+            <label for="seriesSearch" class="block text-sm font-semibold text-gray-700 mb-2">
               Collectible Series <span class="text-red-500">*</span>
             </label>
             <div class="relative" [class.mb-3]="selectedSeries === 'custom'">
-              <select 
-                id="seriesSelect" 
-                [(ngModel)]="selectedSeries" 
-                name="selectedSeries"
-                (change)="onSeriesChange()"
-                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white appearance-none"
+              <input
+                type="text"
+                id="seriesSearch"
+                [(ngModel)]="seriesSearchTerm"
+                name="seriesSearch"
+                (input)="onSeriesSearchChange()"
+                (focus)="openSeriesDropdown()"
+                placeholder="Search or select a series..."
+                autocomplete="off"
+                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white text-gray-900"
                 required>
-                <option value="" disabled selected>Select a series...</option>
-                @for (series of availableSeries; track series.id) {
-                  <option [value]="series.name">{{ series.name }}</option>
-                }
-                <option value="custom">+ Add Custom / Other Series</option>
-              </select>
               <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
               </div>
+              
+              <!-- Dropdown -->
+              @if (showSeriesDropdown) {
+                <div class="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                  <div 
+                    (click)="selectCustomSeries()"
+                    class="px-4 py-3 bg-indigo-50 hover:bg-indigo-100 cursor-pointer transition-colors border-b-2 border-indigo-200">
+                    <p class="text-sm font-semibold text-indigo-700">+ Add Custom / Other Series</p>
+                  </div>
+                  @if (filteredSeries.length > 0) {
+                    @for (series of filteredSeries; track series.id) {
+                      <div 
+                        (click)="selectSeriesFromDropdown(series)"
+                        class="px-4 py-3 hover:bg-indigo-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0">
+                        <p class="text-sm font-medium text-gray-900">{{ series.name }}</p>
+                      </div>
+                    }
+                  } @else {
+                    <div class="px-4 py-3 text-sm text-gray-500 text-center">
+                      No series found
+                    </div>
+                  }
+                </div>
+              }
             </div>
 
             @if (selectedSeries === 'custom') {
@@ -119,28 +141,47 @@
 
           <!-- Model Name (Specific Collectible) -->
           <div class="mb-4">
-            <label for="modelSelect" class="block text-sm font-semibold text-gray-700 mb-2">
+            <label for="modelSearch" class="block text-sm font-semibold text-gray-700 mb-2">
               Model Name <span class="text-red-500">*</span>
             </label>
             <div class="relative">
-              <select 
-                id="modelSelect" 
-                [(ngModel)]="selectedModelId" 
-                name="selectedModelId"
-                (change)="onModelChange()"
+              <input
+                type="text"
+                id="modelSearch"
+                [(ngModel)]="modelSearchTerm"
+                name="modelSearch"
+                (input)="onModelSearchChange()"
+                (focus)="openModelDropdown()"
                 [disabled]="!selectedSeries || selectedSeries === 'custom'"
-                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white appearance-none disabled:bg-gray-50 disabled:text-gray-400"
+                [placeholder]="!selectedSeries ? 'Select a series first...' : (selectedSeries === 'custom' ? 'N/A for custom series' : 'Search or select a model...')"
+                autocomplete="off"
+                class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white text-gray-900 disabled:bg-gray-50 disabled:text-gray-400"
                 required>
-                <option [value]="null" disabled selected>
-                  {{ !selectedSeries ? 'Select a series first...' : (selectedSeries === 'custom' ? 'N/A for custom series' : 'Select a model...') }}
-                </option>
-                @for (model of availableModels; track model.id) {
-                  <option [value]="model.id">{{ model.name }}</option>
-                }
-              </select>
               <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
               </div>
+              
+              <!-- Dropdown -->
+              @if (showModelDropdown && selectedSeries && selectedSeries !== 'custom') {
+                <div class="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto">
+                  @if (filteredModels.length > 0) {
+                    @for (model of filteredModels; track model.id) {
+                      <div 
+                        (click)="selectModelFromDropdown(model)"
+                        class="px-4 py-3 hover:bg-indigo-50 cursor-pointer transition-colors border-b border-gray-100 last:border-b-0">
+                        <p class="text-sm font-medium text-gray-900">{{ model.name }}</p>
+                        @if (model.rarity) {
+                          <p class="text-xs text-gray-500 mt-1">{{ model.rarity }}</p>
+                        }
+                      </div>
+                    }
+                  } @else {
+                    <div class="px-4 py-3 text-sm text-gray-500 text-center">
+                      No models found for this series
+                    </div>
+                  }
+                </div>
+              }
             </div>
           </div>
 
@@ -160,7 +201,7 @@
               name="description"
               rows="3"
               placeholder="Describe the item features, any defects, or specific trade requests..."
-              class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white text-gray-900"
               [class.border-red-500]="getCharacterLength(description) > 1000"
               [class.border-gray-300]="getCharacterLength(description) <= 1000"></textarea>
             @if (getCharacterLength(description) > 1000) {
@@ -208,7 +249,7 @@
               step="0.01"
               placeholder="0.00"
               (blur)="formatReferenceValue()"
-              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+              class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white text-gray-900"
               required>
           </div>
 
@@ -245,7 +286,7 @@
             [(ngModel)]="serialNumber"
             name="serialNumber"
             placeholder="e.g., POPMART-2024-ABC123"
-            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+            class="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all bg-white text-gray-900"
             required>
         </div>
 
