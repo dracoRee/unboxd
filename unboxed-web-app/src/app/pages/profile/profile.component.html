@@ -13,7 +13,7 @@
         
         <div class="profile-info">
           <div class="name-row">
-            <h1>{{ profile.name }}</h1>
+            <h1>{{ profile.username }}</h1>
             <div class="actions">
               <button *ngIf="isOwnProfile" (click)="toggleEdit()" class="btn-secondary">
                 {{ isEditing ? 'Cancel' : 'Edit Profile' }}
