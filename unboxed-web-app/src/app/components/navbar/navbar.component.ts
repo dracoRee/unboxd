@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TradeService } from '../../services/trade.service';
 import { AuthService } from '../../services/auth.service';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-navbar',
@@ -19,7 +20,8 @@ export class NavbarComponent {
 
   constructor(
     private tradeService: TradeService,
-    public authService: AuthService
+    public authService: AuthService,
+    private router: Router
   ) {
     this.updateIsMobile();
   }
@@ -49,5 +51,19 @@ export class NavbarComponent {
   logout() {
     this.authService.logout();
     this.showProfileMenu = false;
+  }
+
+  onSearchKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.resetFilters();
+      window.location.href = '/browse';
+    }
+  }
+
+  onSearchEnter() {
+    // Do not resetFilters here, just update filters and navigate
+    this.tradeService.updateFilters({ search: this.searchQuery });
+    this.router.navigate(['/browse']);
   }
 }

@@ -17,3 +17,54 @@
   background-color: #660066; /* A darker purple when clicked */
   transform: translateY(1px); /* Slight press effect */
 }
+
+/* --- MOBILE-SPECIFIC MY COLLECTION PAGE TWEAKS --- */
+@media (max-width: 600px) {
+  .mycollection-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+  .mycollection-header h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .mycollection-header p {
+    font-size: 0.95rem;
+  }
+  .mycollection-scan-btn {
+    width: 100%;
+    padding: 0.9rem 0;
+    font-size: 1.1rem;
+    border-radius: 1.2rem;
+    box-shadow: 0 2px 8px 0 rgba(99,102,241,0.10);
+    margin-bottom: 1.5rem;
+    background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
+    color: #fff;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    transition: background 0.2s;
+  }
+  .mycollection-scan-btn svg {
+    height: 1.3em;
+    width: 1.3em;
+  }
+}
+
+/* Hide desktop Scan Item button on mobile, show only on >=sm */
+.mycollection-header .sm\:flex {
+  display: none !important;
+}
+@media (min-width: 640px) {
+  .mycollection-header .sm\:flex {
+    display: flex !important;
+  }
+  .mycollection-scan-btn {
+    display: none !important;
+  }
+}
