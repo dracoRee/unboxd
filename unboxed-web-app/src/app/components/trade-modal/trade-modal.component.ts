@@ -1,7 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TradeItem } from '../../models/trade-item.model';
 import { TradeService } from '../../services/trade.service';
 import { MessagingService } from '../../services/messaging.service';
@@ -10,7 +10,7 @@ import { AuthService } from '../../services/auth.service';
 @Component({
   selector: 'app-trade-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './trade-modal.component.html',
   styleUrl: './trade-modal.component.css'
 })
@@ -38,6 +38,10 @@ export class TradeModalComponent implements OnInit {
     this.tradeService.getMyCollection().subscribe(items => {
       this.myCollection = items;
     });
+  }
+
+  get isOwnListing(): boolean {
+    return this.targetItem?.postedBy?.id === this.authService.backendUser()?.id;
   }
 
   toggleSelection(item: TradeItem) {
@@ -83,7 +87,7 @@ export class TradeModalComponent implements OnInit {
   }
 
   addCash() {
-    this.cashTopUp = this.targetItem.referenceValue;
+    this.cashTopUp = this.targetItem.listingPrice || this.targetItem.referenceValue;
   }
 
   onCashInputChange() {
@@ -192,7 +196,7 @@ export class TradeModalComponent implements OnInit {
       return;
     }
 
-    console.log('Sending offered collectible IDs:', offeredIds);
+    // console.log('Sending offered collectible IDs:', offeredIds);
     
     // Use postedBy.id as receiver
     const receiverId = this.targetItem.postedBy.id;

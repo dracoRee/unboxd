@@ -113,7 +113,7 @@ export async function ensureBucketsExist(): Promise<void> {
       if (error) {
         console.error(`Failed to create bucket ${bucket.name}:`, error);
       } else {
-        console.log(`✅ Created storage bucket: ${bucket.name}`);
+        // console.log(`✅ Created storage bucket: ${bucket.name}`);
       }
     }
   }

@@ -74,7 +74,7 @@ export class HomeComponent implements OnInit {
     this.loading = true;
     try {
       this.data = await this.supabaseService.fetchData('users');
-      console.log('Successfully fetched users:', this.data);
+      // console.log('Successfully fetched users:', this.data);
     } catch (error) {
       console.error('Error fetching data:', error);
       this.error = error instanceof Error ? error.message : 'Failed to fetch data from users table';

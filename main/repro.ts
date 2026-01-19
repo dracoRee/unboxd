@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   try {
-    console.log('Attempting to fetch listing 11...');
+    // console.log('Attempting to fetch listing 11...');
     const listing = await prisma.userListing.findUnique({
       where: { id: 11 },
       include: {
@@ -27,7 +27,7 @@ async function main() {
         }
       }
     });
-    console.log('Listing fetched:', listing);
+    // console.log('Listing fetched:', listing);
   } catch (error) {
     console.error('Error fetching listing:');
     console.error(error);

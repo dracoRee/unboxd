@@ -67,7 +67,7 @@ export class AppComponent implements OnInit {
   }
 
   handleTradeSent(offer: any) {
-    console.log('Trade offer sent:', offer);
+    // console.log('Trade offer sent:', offer);
     // In a real app, you'd call a service here
     alert(`Trade offer for ${offer.target.name} sent successfully! Status: ${offer.valueStatus}`);
   }

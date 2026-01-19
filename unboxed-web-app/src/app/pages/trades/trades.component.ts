@@ -248,7 +248,7 @@ export class TradesComponent implements OnInit {
 
   triggerUpload() {
     this.fileInput.nativeElement.click();
-    console.log("button clicked")
+    // console.log("button clicked")
   }
 
   editListing(listingId: number) {
@@ -259,7 +259,7 @@ export class TradesComponent implements OnInit {
   const file = event.target.files[0];
   
   if (!file) {
-    console.log("No file selected");
+    // console.log("No file selected");
     return;
   }
 
@@ -267,12 +267,12 @@ export class TradesComponent implements OnInit {
   const supabaseUser = this.authService.currentUser();
   const currentBackendUser = this.authService.backendUser();
   
-  console.log("Supabase User:", supabaseUser);
-  console.log("Backend User:", currentBackendUser);
+  // console.log("Supabase User:", supabaseUser);
+  // console.log("Backend User:", currentBackendUser);
   
   // If not logged into Supabase at all
   if (!supabaseUser) {
-    console.log("Not logged into Supabase");
+    // console.log("Not logged into Supabase");
     alert('You must be logged in to list an item. Please log in first.');
     // Reset the file input
     this.fileInput.nativeElement.value = '';
@@ -281,7 +281,7 @@ export class TradesComponent implements OnInit {
   
   // If logged into Supabase but backend sync hasn't completed
   if (!currentBackendUser || !currentBackendUser.id) {
-    console.log("Backend user not synced yet. Please wait and try again.");
+    // console.log("Backend user not synced yet. Please wait and try again.");
     alert('Your account is still syncing. Please wait a moment and try again.');
     // Reset the file input
     this.fileInput.nativeElement.value = '';
@@ -289,7 +289,7 @@ export class TradesComponent implements OnInit {
   }
 
   const userId = currentBackendUser.id;
-  console.log("Using userId:", userId);
+  // console.log("Using userId:", userId);
 
   // Convert file to base64 and store in session storage
   const reader = new FileReader();
