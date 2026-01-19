@@ -93,6 +93,7 @@ export class TradeService {
     const userId = this.authService.backendUser()?.id;
     if (!userId) {
       this.wishlistedIds.clear();
+      this.syncWishlistedItems();
       return of(undefined);
     }
 
@@ -104,12 +105,22 @@ export class TradeService {
           if (item.item_id) this.wishlistedIds.add(item.item_id);
         });
         this.wishlistSubject.next(mappedListings);
+        this.syncWishlistedItems();
       }),
       catchError(error => {
         console.error('Failed to refresh wishlist status', error);
         return of(undefined);
       })
     );
+  }
+
+  private syncWishlistedItems() {
+    const currentItems = this.itemsSubject.value;
+    const updatedItems = currentItems.map(item => ({
+      ...item,
+      isFavourited: this.wishlistedIds.has(item.item_id)
+    }));
+    this.itemsSubject.next(updatedItems);
   }
 
   /**

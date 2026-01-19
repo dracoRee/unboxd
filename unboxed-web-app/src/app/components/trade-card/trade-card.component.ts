@@ -28,13 +28,30 @@ export class TradeCardComponent {
     // Use item_id which represents the listing ID for wishlisting
     const targetId = this.item.item_id;
 
-    if (!this.item.isFavourited) {
+    // Optimistically update the UI immediately
+    this.item.isFavourited = !this.item.isFavourited;
+
+    if (this.item.isFavourited) {
       this.tradeService.addToWishlist(userId, targetId).subscribe({
-        error: (err) => console.error('Failed to wishlist', err)
+        next: () => {
+          // Successfully added to wishlist
+        },
+        error: (err) => {
+          console.error('Failed to wishlist', err);
+          // Revert optimistic update on error
+          this.item.isFavourited = !this.item.isFavourited;
+        }
       });
     } else {
       this.tradeService.removeFromWishlist(userId, targetId).subscribe({
-        error: (err) => console.error('Failed to remove from wishlist', err)
+        next: () => {
+          // Successfully removed from wishlist
+        },
+        error: (err) => {
+          console.error('Failed to remove from wishlist', err);
+          // Revert optimistic update on error
+          this.item.isFavourited = !this.item.isFavourited;
+        }
       });
     }
   }
