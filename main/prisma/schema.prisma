@@ -87,6 +87,7 @@ model UserCollectible {
   receiptUrl     String?
   referenceValue Float?
   serialNumber   String?
+  quantity       Int               @default(1)
   series         Series            @relation(fields: [seriesId], references: [id])
   user           User              @relation(fields: [userId], references: [id])
 }
