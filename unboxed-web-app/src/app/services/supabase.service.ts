@@ -12,7 +12,7 @@ export class SupabaseService {
   private readonly IMAGES_BUCKET = 'images';
 
   constructor() {
-    console.log('Initializing Supabase client with URL:', environment.supabaseUrl);
+    // console.log('Initializing Supabase client with URL:', environment.supabaseUrl);
     
     this.supabase = createClient(
       environment.supabaseUrl,
@@ -38,7 +38,7 @@ export class SupabaseService {
    * Fetch all items from the Collectible table joined with Series
    */
   async getItems(): Promise<any[]> {
-    console.log('Fetching items from Supabase...');
+    // console.log('Fetching items from Supabase...');
     
     // Performance: join with Series to get series name
     const { data, error } = await this.supabase
@@ -50,7 +50,7 @@ export class SupabaseService {
       throw error;
     }
     
-    console.log('Fetched items with Series join:', data);
+    // console.log('Fetched items with Series join:', data);
     return data || [];
   }
 
@@ -58,7 +58,7 @@ export class SupabaseService {
    * Fetch active listings from UserListing joined with Collectible, Series, and User
    */
   async getAvailableListings(): Promise<any[]> {
-    console.log('Fetching available listings from Supabase...');
+    // console.log('Fetching available listings from Supabase...');
     const { data, error } = await this.supabase
       .from('UserListing')
       .select(`
@@ -82,7 +82,7 @@ export class SupabaseService {
       throw error;
     }
     
-    console.log('Fetched listed items:', data);
+    // console.log('Fetched listed items:', data);
     return data || [];
   }
 
@@ -90,7 +90,7 @@ export class SupabaseService {
    * Fetch all series
    */
   async getSeries(): Promise<any[]> {
-    console.log('Fetching series from Supabase...');
+    // console.log('Fetching series from Supabase...');
     
     const { data, error } = await this.supabase
       .from('Series')

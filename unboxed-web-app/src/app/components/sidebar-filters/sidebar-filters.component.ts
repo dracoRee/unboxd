@@ -20,6 +20,7 @@ export class SidebarFiltersComponent implements OnInit {
 
   availableSeries: string[] = [];
   isLoadingSeries = true;
+  seriesSearchTerm: string = '';
 
   constructor(
     private tradeService: TradeService,
@@ -88,6 +89,16 @@ export class SidebarFiltersComponent implements OnInit {
 
   onValueChange() {
     this.updateFilters();
+  }
+
+  get filteredSeries(): string[] {
+    if (!this.seriesSearchTerm.trim()) {
+      return this.availableSeries;
+    }
+    const searchLower = this.seriesSearchTerm.toLowerCase();
+    return this.availableSeries.filter(series => 
+      series.toLowerCase().includes(searchLower)
+    );
   }
 
   private updateFilters() {

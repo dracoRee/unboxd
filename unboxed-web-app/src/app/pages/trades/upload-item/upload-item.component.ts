@@ -356,7 +356,7 @@ export class UploadItemComponent implements OnInit {
       if (this.isEditing && this.editingId) {
         this.userService.updateListing(this.editingId, formData).subscribe({
           next: (result) => {
-            console.log('Listing updated:', result);
+            // console.log('Listing updated:', result);
             alert('Listing updated successfully!');
             this.router.navigate(['/trades']);
           },
@@ -381,7 +381,7 @@ export class UploadItemComponent implements OnInit {
         this.http.post(listingsUrl, formData)
           .subscribe({
             next: (result: any) => {
-              console.log('Listing created successfully:', result);
+              // console.log('Listing created successfully:', result);
               sessionStorage.removeItem('uploadedItemImage');
               alert('Your item has been successfully listed!');
               this.router.navigate(['/trades']);

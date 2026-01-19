@@ -59,11 +59,11 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 // Socket.io connection handling
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  // console.log('User connected:', socket.id);
 
   socket.on('join_conversation', (conversationId) => {
     socket.join(`conversation_${conversationId}`);
-    console.log(`User ${socket.id} joined conversation_${conversationId}`);
+    // console.log(`User ${socket.id} joined conversation_${conversationId}`);
   });
 
   socket.on('send_message', async (data) => {
@@ -117,7 +117,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    // console.log('User disconnected:', socket.id);
   });
 });
 
@@ -145,12 +145,12 @@ app.post('/auth/register', async (req, res) => {
   }
 
   try {
-    console.log(`[Registration] Attempting to register: ${email}`);
+    // console.log(`[Registration] Attempting to register: ${email}`);
     
     // Check if user already exists in local database
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
-      console.log(`[Registration] User already exists in database: ${email}`);
+      // console.log(`[Registration] User already exists in database: ${email}`);
       return res.status(400).json({ error: 'Email already exists' });
     }
     
@@ -167,9 +167,9 @@ app.post('/auth/register', async (req, res) => {
     // Handle "User already exists" by cleaning up stale Supabase record if it's not in Prisma
     // This handles the case where a user was deleted from the local DB but not Supabase (common in dev/test)
     if (supabaseError && ((supabaseError as any).code === 'email_exists' || supabaseError.message?.includes('already been registered'))) {
-      console.log(`[Registration] Detect desync: User ${email} exists in Supabase but not locally.`);
+      // console.log(`[Registration] Detect desync: User ${email} exists in Supabase but not locally.`);
       try {
-        console.log(`[Registration] Attempting to find and delete stale Supabase user...`);
+        // console.log(`[Registration] Attempting to find and delete stale Supabase user...`);
         // Fetch users to find the ID (listUsers defaults to 50, trying 1000 to be safe)
         const { data: listData } = await supabaseAdmin.auth.admin.listUsers();
         
@@ -178,10 +178,10 @@ app.post('/auth/register', async (req, res) => {
         const staleUser = listData?.users.find(u => u.email?.toLowerCase() === inputEmail);
 
         if (staleUser) {
-          console.log(`[Registration] Deleting stale Supabase user: ${staleUser.id}`);
+          // console.log(`[Registration] Deleting stale Supabase user: ${staleUser.id}`);
           await supabaseAdmin.auth.admin.deleteUser(staleUser.id);
           
-          console.log(`[Registration] Retrying creation for ${email}...`);
+          // console.log(`[Registration] Retrying creation for ${email}...`);
           const retryResult = await supabaseAdmin.auth.admin.createUser({
             email,
             password,
@@ -190,7 +190,7 @@ app.post('/auth/register', async (req, res) => {
           });
 
           if (!retryResult.error) {
-            console.log('[Registration] Retry successful.');
+            // console.log('[Registration] Retry successful.');
             supabaseUser = retryResult.data;
             supabaseError = null; // Clear error to proceed
           } else {
@@ -305,7 +305,7 @@ app.post('/auth/forgot-password', async (req, res) => {
 
     const resetLink = `${FRONTEND_URL}/reset-password?token=${token}`;
 
-    console.log(`[Development] Reset Link: ${resetLink}`); // Log link for testing without email
+    // console.log(`[Development] Reset Link: ${resetLink}`); // Log link for testing without email
 
     await transporter.sendMail({
       from: '"Unboxed Auth" <noreply@unboxd.com>',
@@ -315,7 +315,7 @@ app.post('/auth/forgot-password', async (req, res) => {
       html: `<p>Click <a href="${resetLink}">here</a> to reset your password.</p>`,
     });
 
-    console.log(`Reset email sent successfully to ${email}`);
+    // console.log(`Reset email sent successfully to ${email}`);
     res.json({ message: 'Reset link sent' });
   } catch (error) {
     console.error('Forgot Password Error:', error);
@@ -356,7 +356,7 @@ app.post('/auth/reset-password', async (req, res) => {
         if (updateError) {
           console.error('Supabase Auth Update Error:', updateError);
         } else {
-          console.log(`Supabase Auth password updated for ${user.email}`);
+          // console.log(`Supabase Auth password updated for ${user.email}`);
         }
       } else {
         console.warn(`User ${user.email} not found in Supabase Auth`);
@@ -767,7 +767,7 @@ app.post('/upload', upload.single('image'), async (req, res) => {
     const { data: buckets } = await supabaseAdmin.storage.listBuckets();
     
     if (!buckets?.find(b => b.name === bucketName)) {
-      console.log(`Bucket '${bucketName}' not found. Creating...`);
+      // console.log(`Bucket '${bucketName}' not found. Creating...`);
       const { error: createError } = await supabaseAdmin.storage.createBucket(bucketName, {
         public: true,
         fileSizeLimit: 5242880, // 5MB
@@ -849,7 +849,7 @@ app.post('/trades', async (req, res) => {
       }
     }
 
-    console.log('Offered collectible IDs:', offeredIds);
+    // console.log('Offered collectible IDs:', offeredIds);
     const trade = await prisma.trade.create({
       data: {
         proposerId: parseInt(proposerId),
@@ -1677,7 +1677,7 @@ app.post('/conversations', async (req, res) => {
       }))
     };
     
-    console.log(`Created conversation ${conversation.id} for users ${ids.join(', ')}`);
+    // console.log(`Created conversation ${conversation.id} for users ${ids.join(', ')}`);
     res.json(mappedConversation);
   } catch (error) {
     console.error('Failed to create conversation:', error);
@@ -2163,7 +2163,7 @@ app.patch('/listings/:id/availability', async (req, res) => {
       await prisma.wishlistItem.deleteMany({
         where: { listingId }
       });
-      console.log(`Automatically removed listing ${listingId} from all wishlists as it is no longer available.`);
+      // console.log(`Automatically removed listing ${listingId} from all wishlists as it is no longer available.`);
     }
 
     res.json(listing);
@@ -2179,7 +2179,7 @@ ensureBucketsExist().catch(err => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  // console.log(`Server running on port ${PORT}`);
 });
 
 // Serve static files from the Angular dist folder

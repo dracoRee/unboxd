@@ -33,7 +33,7 @@ export class AuthService {
 
     // 2. Listen for Auth Changes
     this.supabaseService.auth.onAuthStateChange((event, session) => {
-      console.log('Auth State Changed:', event, session?.user?.email);
+      // console.log('Auth State Changed:', event, session?.user?.email);
       
       if (session) {
         this.currentUser.set(session.user);
@@ -54,7 +54,7 @@ export class AuthService {
     this.userService.syncUser(supabaseUser.email, name).subscribe({
       next: (user) => {
         this.backendUser.set(user);
-        console.log('Backend Identity Resolved:', user);
+        // console.log('Backend Identity Resolved:', user);
       },
       error: (err) => console.error('Failed to sync with backend:', err)
     });
@@ -89,7 +89,11 @@ export class AuthService {
       }
     })).pipe(
       tap(({ data, error }) => {
-        if (error) throw error;
+        if (error) {
+          console.error('Google OAuth Error:', error);
+          throw error;
+        }
+        console.log('Google OAuth Data:', data);
       })
     );
   }
