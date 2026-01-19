@@ -42,9 +42,11 @@ export class TradeService {
   filteredItems$ = combineLatest([this.itemsSubject, this.filtersSubject]).pipe(
     map(([items, filters]) => {
       return items.filter(item => {
-        const matchesSearch = !filters.search || 
-          item.name.toLowerCase().includes(filters.search.toLowerCase()) ||
-          item.series.toLowerCase().includes(filters.search.toLowerCase());
+        const search = filters.search?.toLowerCase() || '';
+        const matchesSearch = !search ||
+          (item.listingTitle && item.listingTitle.toLowerCase().includes(search)) ||
+          (item.name && item.name.toLowerCase().includes(search)) ||
+          (item.series && item.series.toLowerCase().includes(search));
         
         const matchesSeries = !filters.series?.length || filters.series.includes(item.series);
         const matchesRarity = !filters.rarity?.length || filters.rarity.includes(item.rarity);

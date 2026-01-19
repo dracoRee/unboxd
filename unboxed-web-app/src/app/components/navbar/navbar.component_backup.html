@@ -1,0 +1,130 @@
+<nav *ngIf="authService.isLoggedIn()" class="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+  <div class="container mx-auto px-4 h-16 flex items-center justify-between">
+    <!-- Logo -->
+    <div class="flex items-center gap-4 cursor-pointer pl-4" routerLink="/browse" (click)="resetFilters()">
+      <span class="logo-area"><img src="logo-banner.PNG" alt="unboxed logo"></span>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="hidden md:flex flex-1 max-w-md mx-8">
+      <div class="relative w-full">
+        <input 
+          type="text" 
+          placeholder="Search series, characters..." 
+          [(ngModel)]="searchQuery"
+          (input)="onSearchChange()"
+          class="w-full bg-gray-100 border-transparent focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent rounded-full py-2 pl-10 pr-4 text-sm text-black transition-all"
+        >
+        <div class="absolute left-3 top-2.5 text-black">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Icons & Profile -->
+    <div class="flex items-center gap-4 md:gap-6">
+      <button 
+        class="p-2 text-black hover:text-indigo-600 transition-colors" 
+        title="Series"
+        routerLink="/series"
+        routerLinkActive="text-indigo-600 bg-indigo-50 rounded-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+        </svg>
+      </button>
+
+      <button 
+        class="p-2 text-black hover:text-indigo-600 transition-colors" 
+        title="My Collection"
+        routerLink="/my-collection"
+        routerLinkActive="text-indigo-600 bg-indigo-50 rounded-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+        </svg>
+      </button>
+
+      <button 
+        class="relative p-2 text-black hover:text-indigo-600 transition-colors" 
+        title="Trades"
+        routerLink="/trades"
+        routerLinkActive="text-indigo-600 bg-indigo-50 rounded-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        </svg>
+        <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+      </button>
+      
+      <button 
+        class="p-2 text-black hover:text-indigo-600 transition-colors" 
+        title="Favourites"
+        routerLink="/wishlist"
+        routerLinkActive="text-indigo-600 bg-indigo-50 rounded-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      </button>
+
+      <!-- old inbox button-->
+      <!-- <button 
+        class="p-2 text-black hover:text-indigo-600 transition-colors" 
+        title="Offers"
+        routerLink="/inbox"
+        routerLinkActive="text-indigo-600 bg-indigo-50 rounded-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+        </svg>
+      </button> -->
+
+      <button 
+        class="p-2 text-black hover:text-indigo-600 transition-colors" 
+        title="Chat"
+        routerLink="/chat"
+        routerLinkActive="text-indigo-600 bg-indigo-50 rounded-lg"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+      </button>
+
+      <div class="relative">
+        <div 
+          (click)="showProfileMenu = !showProfileMenu"
+          class="h-8 w-8 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all"
+        >
+          <img 
+            [src]="authService.backendUser()?.profilePicture || '/default-avatar.png'" 
+            [alt]="authService.backendUser()?.name || 'User avatar'" 
+            class="w-full h-full object-cover"
+          >
+        </div>
+
+        <!-- Dropdown Menu -->
+        <div *ngIf="showProfileMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-[60]">
+          <div class="px-4 py-2 border-b border-gray-100">
+            <p class="text-xs text-black font-medium">Signed in as</p>
+            <p class="text-sm font-semibold text-black truncate">{{ authService.currentUser()?.email }}</p>
+          </div>
+          <button *ngIf="authService.backendUser()" [routerLink]="['/profile', authService.backendUser()?.id]" (click)="showProfileMenu = false" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            My Profile
+          </button>
+          <button (click)="logout()" class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sign Out
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>

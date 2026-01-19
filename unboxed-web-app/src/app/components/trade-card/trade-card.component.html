@@ -1,5 +1,6 @@
-<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300"
-     (click)="onCardClick(item)">
+<div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300 hover:scale-105"
+  style="will-change: transform;"
+  (click)="onCardClick(item)">
   
   <!-- Image Section -->
   <div class="relative h-48 bg-gray-100 overflow-hidden group">
@@ -53,7 +54,8 @@
   <div class="p-4">
     <!-- Title & Series -->
     <div class="mb-2">
-      <h3 class="font-bold text-gray-900 text-sm line-clamp-1">{{ item.listingTitle || item.name }}</h3>
+      <h3 class="font-bold text-gray-900 text-m mb-2 line-clamp-1">{{ item.listingTitle || item.name }}</h3>
+      <h3 *ngIf="item.name && item.name.trim() !== ''" class="text-lg font-normal text-gray-900 text-sm mb-1 line-clamp-1">{{ item.name }}</h3>
       <p class="text-xs text-indigo-600 font-medium">{{ item.series }}</p>
     </div>
 
