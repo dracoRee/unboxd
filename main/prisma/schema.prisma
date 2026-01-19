@@ -17,8 +17,12 @@ model User {
   resetTokenExpiry  DateTime?
   bio               String?
   isVerified        Boolean           @default(false)
+  phoneVerified     Boolean           @default(false)
   profilePicture    String?
   username          String            @unique
+  createdAt         DateTime          @default(now())
+  ratingAvg         Float             @default(0)
+  ratingCount       Int               @default(0)
   collectibles      Collectible[]
   messages          Message[]
   publicUser        PublicUser?
@@ -29,6 +33,8 @@ model User {
   userConversations Conversation[]    @relation("ConversationToUser")
   following         User[]            @relation("UserFollows")
   followedBy        User[]            @relation("UserFollows")
+  ratingsGiven      UserRating[]      @relation("RatingsGiven")
+  ratingsReceived   UserRating[]      @relation("RatingsReceived")
 }
 
 model PublicUser {
@@ -126,6 +132,7 @@ model Trade {
   receiver     User               @relation("ReceivedTrades", fields: [receiverId], references: [id])
   targetItem   Collectible        @relation(fields: [targetItemId], references: [id])
   offeredItems TradeOfferedItem[]
+  ratings      UserRating[]
 }
 
 model TradeOfferedItem {
@@ -178,4 +185,20 @@ enum ListingCondition {
   LIGHTLY_USED
   WELL_USED
   HEAVILY_USED
+}
+
+model UserRating {
+  id        Int      @id @default(autoincrement())
+  tradeId   Int
+  raterId   Int
+  rateeId   Int
+  score     Int      // 1-5
+  comment   String?
+  createdAt DateTime @default(now())
+  trade     Trade    @relation(fields: [tradeId], references: [id])
+  rater     User     @relation("RatingsGiven", fields: [raterId], references: [id])
+  ratee     User     @relation("RatingsReceived", fields: [rateeId], references: [id])
+
+  @@unique([tradeId, raterId])
+  @@index([rateeId])
 }
