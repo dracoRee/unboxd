@@ -13,8 +13,8 @@ import { AuthService } from '../../services/auth.service';
 })
 export class TradeCardComponent {
   @Input() item!: TradeItem;
+  @Input() showFavourite: boolean = true;
 
-  isFavourited = false;
   isImageZoomed = false;
 
   constructor(
@@ -25,18 +25,15 @@ export class TradeCardComponent {
   toggleFavourite(event: Event) {
     event.stopPropagation();
     const userId = this.authService.backendUser()?.id || 1;
-    
-    // Use collectible_id if present (for listings), fallback to item_id (legacy/raw collectible)
-    const targetId = this.item.collectible_id ? parseInt(this.item.collectible_id) : parseInt(this.item.item_id);
+    // Use item_id which represents the listing ID for wishlisting
+    const targetId = parseInt(this.item.item_id);
 
-    if (!this.isFavourited) {
+    if (!this.item.isFavourited) {
       this.tradeService.addToWishlist(userId, targetId).subscribe({
-        next: () => this.isFavourited = true,
         error: (err) => console.error('Failed to wishlist', err)
       });
     } else {
       this.tradeService.removeFromWishlist(userId, targetId).subscribe({
-        next: () => this.isFavourited = false,
         error: (err) => console.error('Failed to remove from wishlist', err)
       });
     }

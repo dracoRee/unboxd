@@ -68,17 +68,21 @@ model Collectible {
   trades         Trade[]
   offeredIn      TradeOfferedItem[]
   userListings   UserListing[]
-  wishlistedBy   WishlistItem[]
 }
 
 model UserCollectible {
-  id       Int     @id @default(autoincrement())
-  userId   Int
-  seriesId Int
-  imageUrl String
-  name     String?
-  series   Series  @relation(fields: [seriesId], references: [id])
-  user     User    @relation(fields: [userId], references: [id])
+  id             Int               @id @default(autoincrement())
+  userId         Int
+  seriesId       Int
+  imageUrl       String
+  name           String?
+  condition      ListingCondition? @default(BRAND_NEW)
+  demoVideoUrl   String?
+  receiptUrl     String?
+  referenceValue Float?
+  serialNumber   String?
+  series         Series            @relation(fields: [seriesId], references: [id])
+  user           User              @relation(fields: [userId], references: [id])
 }
 
 model UserListing {
@@ -101,6 +105,7 @@ model UserListing {
   status              ListingStatus    @default(AVAILABLE)
   collectible         Collectible?     @relation(fields: [collectibleId], references: [id])
   user                PublicUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wishlistedBy        WishlistItem[]
 
   @@index([userId])
   @@index([collectibleId])
@@ -132,13 +137,13 @@ model TradeOfferedItem {
 }
 
 model WishlistItem {
-  id            Int         @id @default(autoincrement())
-  userId        Int
-  collectibleId Int
-  collectible   Collectible @relation(fields: [collectibleId], references: [id])
-  user          User        @relation(fields: [userId], references: [id])
+  id        Int         @id @default(autoincrement())
+  userId    Int
+  listingId Int
+  listing   UserListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  user      User        @relation(fields: [userId], references: [id])
 
-  @@unique([userId, collectibleId])
+  @@unique([userId, listingId])
 }
 
 model Conversation {

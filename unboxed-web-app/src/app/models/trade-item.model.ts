@@ -16,6 +16,7 @@ export interface TradeItem {
   description: string;
   condition: string;
   listedAt: Date;
+  isFavourited?: boolean;
   postedBy: {
     id: number;
     name: string;
