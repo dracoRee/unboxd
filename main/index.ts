@@ -835,13 +835,23 @@ app.get('/trades/:userId', async (req, res) => {
         proposer: { 
           select: { 
             id: true,
-            publicUser: { select: { name: true } }
+            username: true,
+            createdAt: true,
+            phoneVerified: true,
+            ratingAvg: true,
+            ratingCount: true,
+            publicUser: { select: { name: true, username: true, profilePicture: true } }
           } 
         },
         receiver: { 
           select: { 
             id: true,
-            publicUser: { select: { name: true } }
+            username: true,
+            createdAt: true,
+            phoneVerified: true,
+            ratingAvg: true,
+            ratingCount: true,
+            publicUser: { select: { name: true, username: true, profilePicture: true } }
           } 
         },
         messages: { orderBy: { createdAt: 'asc' } }
@@ -849,14 +859,111 @@ app.get('/trades/:userId', async (req, res) => {
       orderBy: { createdAt: 'desc' }
     });
     
-    const mappedTrades = trades.map((t: any) => ({
-      ...t,
-      proposer: { id: t.proposer.id, name: t.proposer.publicUser?.name || 'User' },
-      receiver: { id: t.receiver.id, name: t.receiver.publicUser?.name || 'User' }
-    }));
+    // Compute completed trades count for each counterparty
+    const counterpartyIds = new Set<number>();
+    trades.forEach((t: any) => {
+      if (t.proposerId !== id) counterpartyIds.add(t.proposerId);
+      if (t.receiverId !== id) counterpartyIds.add(t.receiverId);
+    });
+
+    // Build listing lookup for offered and target item images
+    const listingLookup = new Map<string, { imageUrl: string | null; receiptUrl: string | null }>();
+    const listingUserIds = new Set<number>();
+    const listingCollectibleIds = new Set<number>();
+
+    trades.forEach((t: any) => {
+      listingUserIds.add(t.proposerId);
+      listingUserIds.add(t.receiverId);
+      listingCollectibleIds.add(t.targetItemId);
+      t.offeredItems.forEach((item: any) => {
+        listingCollectibleIds.add(item.collectibleId);
+      });
+    });
+
+    if (listingUserIds.size > 0 && listingCollectibleIds.size > 0) {
+      const listings = await prisma.userListing.findMany({
+        where: {
+          userId: { in: Array.from(listingUserIds) },
+          collectibleId: { in: Array.from(listingCollectibleIds) }
+        },
+        select: {
+          userId: true,
+          collectibleId: true,
+          imageUrl: true,
+          receiptUrl: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      listings.forEach((listing) => {
+        const key = `${listing.userId}:${listing.collectibleId}`;
+        if (!listingLookup.has(key)) {
+          listingLookup.set(key, { imageUrl: listing.imageUrl, receiptUrl: listing.receiptUrl });
+        }
+      });
+    }
+
+    // Get completed trade counts for all counterparties
+    const completedTradeCounts: Record<number, number> = {};
+    for (const cpId of counterpartyIds) {
+      const count = await prisma.trade.count({
+        where: {
+          status: 'COMPLETED',
+          OR: [{ proposerId: cpId }, { receiverId: cpId }]
+        }
+      });
+      completedTradeCounts[cpId] = count;
+    }
+    
+    const mappedTrades = trades.map((t: any) => {
+      // Determine counterparty (the other user in the trade)
+      const isProposer = t.proposerId === id;
+      const counterpartyUser = isProposer ? t.receiver : t.proposer;
+      const counterpartyId = isProposer ? t.receiverId : t.proposerId;
+      
+      // Format member since date
+      const memberSince = counterpartyUser.createdAt 
+        ? new Date(counterpartyUser.createdAt).getFullYear().toString()
+        : 'Unknown';
+
+      const targetListingKey = `${t.receiverId}:${t.targetItemId}`;
+      const targetListing = listingLookup.get(targetListingKey);
+      const offeredItems = t.offeredItems.map((item: any) => {
+        const key = `${t.proposerId}:${item.collectibleId}`;
+        const listing = listingLookup.get(key);
+        return {
+          ...item,
+          imageUrl: listing?.imageUrl || listing?.receiptUrl || null
+        };
+      });
+
+      return {
+        ...t,
+        proposer: { id: t.proposer.id, name: t.proposer.publicUser?.name || t.proposer.username || 'User' },
+        receiver: { id: t.receiver.id, name: t.receiver.publicUser?.name || t.receiver.username || 'User' },
+        targetItem: {
+          ...t.targetItem,
+          imageUrl: targetListing?.imageUrl || targetListing?.receiptUrl || null
+        },
+        offeredItems,
+        counterparty: {
+          id: counterpartyId,
+          username: counterpartyUser.publicUser?.username || counterpartyUser.username || `User_${counterpartyId}`,
+          name: counterpartyUser.publicUser?.name || counterpartyUser.username || 'Unknown User',
+          profilePicture: counterpartyUser.publicUser?.profilePicture || null,
+          rating: counterpartyUser.ratingAvg || 0,
+          ratingCount: counterpartyUser.ratingCount || 0,
+          completedTrades: completedTradeCounts[counterpartyId] || 0,
+          memberSince,
+          isPhoneVerified: counterpartyUser.phoneVerified || false
+        }
+      };
+    });
     
     res.json(mappedTrades);
   } catch (error) {
+    console.error('Failed to fetch trades:', error);
     res.status(500).json({ error: 'Failed to fetch trades' });
   }
 });
@@ -875,6 +982,145 @@ app.patch('/trades/:id', async (req, res) => {
     res.json(trade);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update trade' });
+  }
+});
+
+// Rating API - immutable, only for completed trades
+app.post('/ratings', async (req, res) => {
+  const { tradeId, raterId, rateeId, score, comment } = req.body;
+
+  // Validate score range
+  if (!score || score < 1 || score > 5) {
+    return res.status(400).json({ error: 'Score must be between 1 and 5' });
+  }
+
+  try {
+    // Check trade exists and is completed
+    const trade = await prisma.trade.findUnique({
+      where: { id: parseInt(tradeId) }
+    });
+
+    if (!trade) {
+      return res.status(404).json({ error: 'Trade not found' });
+    }
+
+    if (trade.status !== 'COMPLETED') {
+      return res.status(400).json({ error: 'Can only rate completed trades' });
+    }
+
+    // Verify rater is part of the trade
+    if (trade.proposerId !== parseInt(raterId) && trade.receiverId !== parseInt(raterId)) {
+      return res.status(403).json({ error: 'You are not part of this trade' });
+    }
+
+    // Verify ratee is the other party
+    const expectedRateeId = trade.proposerId === parseInt(raterId) ? trade.receiverId : trade.proposerId;
+    if (expectedRateeId !== parseInt(rateeId)) {
+      return res.status(400).json({ error: 'Invalid ratee for this trade' });
+    }
+
+    // Check if rating already exists (immutable - no updates)
+    const existingRating = await prisma.userRating.findUnique({
+      where: { tradeId_raterId: { tradeId: parseInt(tradeId), raterId: parseInt(raterId) } }
+    });
+
+    if (existingRating) {
+      return res.status(400).json({ error: 'You have already rated this trade' });
+    }
+
+    // Create rating and update user aggregates in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the rating
+      const rating = await tx.userRating.create({
+        data: {
+          tradeId: parseInt(tradeId),
+          raterId: parseInt(raterId),
+          rateeId: parseInt(rateeId),
+          score: parseInt(score),
+          comment: comment || null
+        }
+      });
+
+      // Update ratee's aggregate rating
+      const rateeRatings = await tx.userRating.findMany({
+        where: { rateeId: parseInt(rateeId) },
+        select: { score: true }
+      });
+
+      const totalScore = rateeRatings.reduce((sum: number, r: { score: number }) => sum + r.score, 0);
+      const avgScore = rateeRatings.length > 0 ? totalScore / rateeRatings.length : 0;
+
+      await tx.user.update({
+        where: { id: parseInt(rateeId) },
+        data: {
+          ratingAvg: avgScore,
+          ratingCount: rateeRatings.length
+        }
+      });
+
+      return rating;
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    console.error('Create rating error:', error);
+    res.status(500).json({ error: 'Failed to create rating' });
+  }
+});
+
+// Get ratings for a user
+app.get('/ratings/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const ratings = await prisma.userRating.findMany({
+      where: { rateeId: parseInt(userId) },
+      include: {
+        rater: { select: { id: true, username: true, publicUser: { select: { name: true, profilePicture: true } } } },
+        trade: { select: { id: true, createdAt: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(ratings);
+  } catch (error) {
+    console.error('Fetch ratings error:', error);
+    res.status(500).json({ error: 'Failed to fetch ratings' });
+  }
+});
+
+// Check if user can rate a trade
+app.get('/ratings/check/:tradeId/:raterId', async (req, res) => {
+  const { tradeId, raterId } = req.params;
+  try {
+    const trade = await prisma.trade.findUnique({
+      where: { id: parseInt(tradeId) }
+    });
+
+    if (!trade) {
+      return res.json({ canRate: false, reason: 'Trade not found' });
+    }
+
+    if (trade.status !== 'COMPLETED') {
+      return res.json({ canRate: false, reason: 'Trade not completed' });
+    }
+
+    if (trade.proposerId !== parseInt(raterId) && trade.receiverId !== parseInt(raterId)) {
+      return res.json({ canRate: false, reason: 'Not part of trade' });
+    }
+
+    const existingRating = await prisma.userRating.findUnique({
+      where: { tradeId_raterId: { tradeId: parseInt(tradeId), raterId: parseInt(raterId) } }
+    });
+
+    if (existingRating) {
+      return res.json({ canRate: false, reason: 'Already rated' });
+    }
+
+    const rateeId = trade.proposerId === parseInt(raterId) ? trade.receiverId : trade.proposerId;
+    res.json({ canRate: true, rateeId });
+  } catch (error) {
+    console.error('Check rating error:', error);
+    res.status(500).json({ error: 'Failed to check rating status' });
   }
 });
 
@@ -1706,13 +1952,9 @@ app.get('/listings/:id', async (req, res) => {
         user: {
           select: {
             id: true,
-            publicUser: { 
-              select: { 
-                name: true, 
-                profilePicture: true,
-                bio: true
-              } 
-            }
+            name: true,
+            profilePicture: true,
+            bio: true
           }
         },
         collectible: {
@@ -1729,9 +1971,9 @@ app.get('/listings/:id', async (req, res) => {
       ...listing,
       user: {
         id: listing.user.id,
-        name: listing.user.publicUser?.name || 'User',
-        profilePicture: listing.user.publicUser?.profilePicture,
-        bio: listing.user.publicUser?.bio
+        name: listing.user.name || 'User',
+        profilePicture: listing.user.profilePicture,
+        bio: listing.user.bio
       }
     });
   } catch (error) {
