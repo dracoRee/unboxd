@@ -26,7 +26,7 @@ export class TradeCardComponent {
     event.stopPropagation();
     const userId = this.authService.backendUser()?.id || 1;
     // Use item_id which represents the listing ID for wishlisting
-    const targetId = parseInt(this.item.item_id);
+    const targetId = this.item.item_id;
 
     if (!this.item.isFavourited) {
       this.tradeService.addToWishlist(userId, targetId).subscribe({
@@ -44,10 +44,6 @@ export class TradeCardComponent {
   }
 
   onCardClick(item: TradeItem) {
-    console.log(item.postedBy.profilePicture)
-    console.log(item.postedBy.username)
-    console.log(item.postedBy.name)
-    console.log('Card clicked:', item);
     // For example, open the trade modal:
     this.tradeService.proposeTrade(item);
   }

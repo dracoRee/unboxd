@@ -5,6 +5,7 @@ import { map, switchMap, tap, catchError } from 'rxjs/operators';
 import { TradeItem } from '../models/trade-item.model';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
+import { UserService } from './user.service';
 import { environment } from '@/environments/environment';
 
 const host_url = environment.apiBaseUrl;
@@ -63,7 +64,8 @@ export class TradeService {
   constructor(
     private http: HttpClient,
     private supabaseService: SupabaseService,
-    private authService: AuthService
+    private authService: AuthService,
+    private userService: UserService
   ) {
     this.refreshCatalog();
   }
@@ -97,7 +99,7 @@ export class TradeService {
         this.wishlistedIds.clear();
         const mappedListings = listings.map(listing => this.mapToTradeItem(listing));
         mappedListings.forEach(item => {
-          if (item.item_id) this.wishlistedIds.add(parseInt(item.item_id));
+          if (item.item_id) this.wishlistedIds.add(item.item_id);
         });
         this.wishlistSubject.next(mappedListings);
       }),
@@ -127,7 +129,7 @@ export class TradeService {
     //    So for Wishlist, 'item' IS the Collectible object.
     
     let collectible: any;
-    let listingId = '';
+    let listingId: number = 0;
     let ownerId: string | undefined;
     let ownerName: string | undefined;
     let ownerAvatar: string | undefined;
@@ -136,7 +138,7 @@ export class TradeService {
     if (item.Collectible || item.collectible) {
       // It's a UserListing (or similar wrapper)
       collectible = item.Collectible || item.collectible;
-      listingId = item.id?.toString() || '';
+      listingId = parseInt(item.id) || 0;
       
       // Handle user information
       // 1. Check for PublicUser at the root (from getAvailableListings)
@@ -182,14 +184,14 @@ export class TradeService {
       collectible = item;
       // For raw collectibles, we don't have a specific listing ID, so we use collectible ID as fallback
       // ideally explicit listing ID is better but this maintains back-compat for wishlist view
-      listingId = collectible.id?.toString() || ''; 
+      listingId = parseInt(collectible.id) || 0; 
     }
 
     // Safety check if collectible is null (shouldn't happen with correct data)
     if (!collectible) {
       console.warn('Invalid item structure in mapToTradeItem', item);
       return {
-        item_id: '',
+        item_id: 0,
         name: 'Unknown Item',
         series: 'Unknown',
         rarity: 'Unknown',
@@ -219,8 +221,8 @@ export class TradeService {
     
     return {
       item_id: listingId,
-      isFavourited: this.wishlistedIds.has(parseInt(listingId)),
-      collectible_id: collectible.id?.toString(),
+      isFavourited: this.wishlistedIds.has(listingId),
+      collectible_id: parseInt(collectible.id) || undefined,
       listingTitle: item.title,
       name: collectible.name,
       series: series?.name || 'Unknown Series',
@@ -256,39 +258,41 @@ export class TradeService {
     const user = this.authService.backendUser();
     if (!user) return of([]);
 
-    // Note: UserCollectible relates to Series, not Collectible
-    // UserCollectible has its own name and imageUrl fields
-    return from(this.supabaseService.getUserCollection(user.id)).pipe(
-      map(data => data.map(row => {
-        // UserCollectible has: id, userId, seriesId, name, imageUrl, Series
-        const series = row.Series;
-        const tradeItem: TradeItem = {
-          item_id: row.id?.toString() || '',
-          name: row.name || 'Unnamed Item',
-          series: series?.name || 'Unknown Series',
-          rarity: 'Unknown', 
-          referenceValue: row.referenceValue || 0,
-          listingPrice: 0,
-          // If the URL is already absolute (from new upload system), use it directly. 
-          // Otherwise, fall back to legacy helper.
-          imageUrl: row.imageUrl && row.imageUrl.startsWith('http') 
-            ? row.imageUrl 
-            : this.supabaseService.getImageUrl(row.imageUrl, true),
-          isFeatured: false,
-          status: 'available' as 'available' | 'pending' | 'traded',
-          ownerId: row.userId.toString(),
-          description: row.description || 'No Available Description.',
-          condition: row.condition || 'No Available Condition.',
-          listedAt: row.createdAt ? new Date(row.createdAt) : new Date(),
-          postedBy: {
-            id: row.userId || 0,
-            name: row.User?.name || 'Unknown User',
-            username: row.PublicUser?.username,
-            profilePicture: row.PublicUser?.profilePicture
-          }
-        };
-        return tradeItem;
-      })),
+    return this.userService.getUserListings(user.id).pipe(
+      map(listings => listings
+        .filter(listing => !!listing.collectibleId)
+        .map(listing => {
+          const imageUrl = listing.imageUrl
+            ? (listing.imageUrl.startsWith('http')
+              ? listing.imageUrl
+              : this.supabaseService.getImageUrl(listing.imageUrl, true))
+            : '';
+
+          const tradeItem: TradeItem = {
+            item_id: listing.id,
+            collectible_id: listing.collectibleId || undefined,
+            name: listing.collectible?.name || listing.title || 'Unnamed Item',
+            series: listing.collectible?.series?.name || listing.seriesName || 'Unknown Series',
+            rarity: listing.collectible?.rarity || 'Unknown',
+            referenceValue: listing.referenceValue || 0,
+            listingPrice: listing.referenceValue || 0,
+            imageUrl,
+            isFeatured: (listing.referenceValue || 0) > 40,
+            status: listing.isAvailableForTrade ? 'available' : 'pending',
+            ownerId: listing.userId.toString(),
+            description: listing.description || 'No Available Description.',
+            condition: listing.condition || 'No Available Condition.',
+            listedAt: listing.createdAt ? new Date(listing.createdAt) : new Date(),
+            postedBy: {
+              id: listing.userId,
+              name: user.name || 'Unknown User',
+              username: user.username,
+              profilePicture: user.profilePicture
+            }
+          };
+
+          return tradeItem;
+        })),
       catchError(error => {
         console.error('Error in getMyCollection:', error);
         return of([]);
@@ -366,7 +370,7 @@ export class TradeService {
   private updateItemFavouritedStatus(listingId: number, isFavourited: boolean) {
     const currentItems = this.itemsSubject.value;
     const updatedItems = currentItems.map(item => {
-      if (parseInt(item.item_id) === listingId) {
+      if (item.item_id === listingId) {
         return { ...item, isFavourited };
       }
       return item;

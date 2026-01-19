@@ -1,6 +1,6 @@
 export interface TradeItem {
-  item_id: string; // UserListing.id
-  collectible_id?: string; // Collectible.id
+  item_id: number; // UserListing.id
+  collectible_id?: number; // Collectible.id
   listingTitle?: string;
   name: string;
   series: string;

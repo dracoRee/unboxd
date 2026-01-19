@@ -21,7 +21,7 @@ export class TradeModalComponent implements OnInit {
 
   atSymbol = '@';
   myCollection: TradeItem[] = [];
-  selectedItems: Set<string> = new Set();
+  selectedItems: Set<number> = new Set();
   showImageZoom = false;
   cashTopUp = 0;
   showFullDescription = false;
@@ -40,13 +40,21 @@ export class TradeModalComponent implements OnInit {
     });
   }
 
-  toggleSelection(itemId: string) {
-    if (this.selectedItems.has(itemId)) {
-      this.selectedItems.delete(itemId);
+  toggleSelection(item: TradeItem) {
+    const collectibleId = Number(item.collectible_id);
+
+    if (!collectibleId) {
+      console.warn('Item missing collectible_id', item);
+      return;
+    }
+
+    if (this.selectedItems.has(collectibleId)) {
+      this.selectedItems.delete(collectibleId);
     } else {
-      this.selectedItems.add(itemId);
+      this.selectedItems.add(collectibleId);
     }
   }
+
 
   toggleImageZoom() {
     this.showImageZoom = !this.showImageZoom;
@@ -54,7 +62,7 @@ export class TradeModalComponent implements OnInit {
 
   get totalOfferedValue(): number {
     const itemsValue = this.myCollection
-      .filter(item => this.selectedItems.has(item.item_id))
+      .filter(item => this.selectedItems.has(Number(item.collectible_id)))
       .reduce((sum, item) => sum + item.referenceValue, 0);
     return itemsValue + (this.buyerPaysCash ? this.cashTopUp : -this.cashTopUp);
   }
@@ -139,22 +147,27 @@ export class TradeModalComponent implements OnInit {
     if (this.selectedItems.size === 0 && this.cashTopUp === 0) return;
     if (this.valueComparison === 'Too Low!') return;
     
-    const offeredIds = Array.from(this.selectedItems).map(id => parseInt(id));
+    if (!this.targetItem.collectible_id) {
+      alert('This item is not available for trade.');
+      return;
+    }
     
-    // Use ownerId from the listing as receiver, fallback to 2 only if missing
-    const receiverId = this.targetItem.ownerId ? parseInt(this.targetItem.ownerId) : 2; 
-
-    // Backend expects Collectible ID for the target item
-    const targetId = this.targetItem.collectible_id 
-      ? parseInt(this.targetItem.collectible_id) 
-      : parseInt(this.targetItem.item_id);
+    const offeredIds = Array.from(this.selectedItems);
+    console.log('Sending offered collectible IDs:', offeredIds);
+    
+    // Use postedBy.id as receiver, since ownerId may not be set
+    const receiverId = this.targetItem.postedBy.id;
 
     // Prevent trading with yourself
-    // (Ideally handled in UI by hiding the button, but good safety check)
-    // We don't have current user ID easily available here without injecting authService, 
-    // so we assume UI handles it.
+    if (receiverId === this.authService.backendUser()?.id) {
+      alert('You cannot trade with yourself.');
+      return;
+    }
+    
+    // Backend expects Collectible ID for the target item
+    const targetId = this.targetItem.collectible_id;
 
-    this.tradeService.sendTradeOffer(receiverId, parseInt(this.targetItem.item_id), offeredIds, this.buyerPaysCash, this.cashTopUp).subscribe({
+    this.tradeService.sendTradeOffer(receiverId, targetId, offeredIds, this.buyerPaysCash, this.cashTopUp).subscribe({
       next: (trade) => {
         this.tradeSent.emit(trade);
         this.close.emit();
@@ -168,7 +181,7 @@ export class TradeModalComponent implements OnInit {
 
   onChatWithSeller() {
     const buyerId = this.authService.backendUser()?.id;
-    const sellerId = parseInt(this.targetItem.ownerId || this.targetItem.postedBy.id.toString());
+    const sellerId = this.targetItem.postedBy.id;
     
     if (!buyerId) {
       alert('Please log in to chat with the seller');

@@ -39,6 +39,7 @@ export interface UserListing {
   updatedAt: string;
   collectible?: {
     name: string;
+    rarity: string;
     series: { name: string };
   };
 }
