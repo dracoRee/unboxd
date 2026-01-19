@@ -85,7 +85,7 @@ export class AuthService {
     return from(this.supabaseService.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/browse'
+        redirectTo: environment.appUrl + '/browse'
       }
     })).pipe(
       tap(({ data, error }) => {
