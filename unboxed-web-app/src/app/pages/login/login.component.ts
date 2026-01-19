@@ -46,9 +46,16 @@ export class LoginComponent {
 
   loginWithGoogle() {
     this.loading.set(true);
+    this.error.set('');
     this.authService.loginWithGoogle().subscribe({
+      next: () => {
+        // OAuth will redirect, so we don't need to navigate here
+        // The redirection will happen automatically via Supabase
+        //console.log('Google OAuth initiated');
+      },
       error: (err) => {
-        this.error.set(err.message || 'Google login failed');
+        console.error('Google login error:', err);
+        this.error.set(err.message || 'Google login failed. Please try again.');
         this.loading.set(false);
       }
     });

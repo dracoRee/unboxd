@@ -25,9 +25,9 @@ export class SupabaseService {
   }
 
   async testConnection() {
-    console.log('Testing Supabase connection...');
+    // console.log('Testing Supabase connection...');
     const { data, error } = await this.supabase.from('test_items').select('count');
-    console.log('Result:', { data, error });
+    // console.log('Result:', { data, error });
     return { data, error };
   }
 }

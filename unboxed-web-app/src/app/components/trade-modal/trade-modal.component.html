@@ -14,6 +14,12 @@
     </div>
 
     <div class="p-4 sm:p-8 overflow-y-auto flex-1">
+      @if (isOwnListing) {
+        <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+          <p class="text-sm text-blue-800 font-medium text-center">📌 This is your listing. You cannot trade with yourself.</p>
+        </div>
+      }
+      
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- Target Item (What you want) -->
         <div>
@@ -37,10 +43,15 @@
 
             <!-- Item Details -->
             <div class="text-center mb-4">
-              <h4 class="font-bold text-gray-900 text-xl mb-1">{{ targetItem.name }}</h4>
+              @if (targetItem.listingTitle) {
+                <h3 class="font-bold text-gray-900 text-xl mb-1">{{ targetItem.listingTitle }}</h3>
+                <h4 class="text-gray-700 text-base mb-1">{{ targetItem.name }}</h4>
+              } @else {
+                <h4 class="font-bold text-gray-900 text-xl mb-1">{{ targetItem.name }}</h4>
+              }
               <p class="text-gray-500 mb-2">{{ targetItem.series }}</p>
               <div class="flex items-center justify-center gap-4 text-sm">
-                <span class="font-bold text-accent-600">RM {{ targetItem.referenceValue }}</span>
+                <span class="font-bold text-accent-600">RM {{ targetItem.listingPrice || targetItem.referenceValue }}</span>
                 <span class="text-gray-500">• {{ targetItem.rarity }}</span>
               </div>
             </div>
@@ -91,15 +102,15 @@
               <div class="flex items-center gap-3 pt-2 border-t border-accent-200">
                 <span class="font-medium text-gray-600 text-sm">Posted by:</span>
                 <div class="flex items-center gap-2">
-                  <div class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden">
+                  <a [routerLink]="['/profile', targetItem.postedBy.id]" class="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-indigo-400 transition-all cursor-pointer">
                      @if (targetItem.postedBy.profilePicture) {
                         <img [src]="targetItem.postedBy.profilePicture" class="w-full h-full object-cover">
                       } @else {
                         <span class="text-[10px] font-bold text-indigo-600">{{ targetItem.postedBy.username ? targetItem.postedBy.username.charAt(0).toUpperCase() : (targetItem.postedBy.name.charAt(0) || 'U') }}</span>
                       }
-                  </div>
+                  </a>
                   <div class="flex flex-col">
-                    <span class="text-sm font-medium text-gray-900">{{ targetItem.postedBy.name || 'Unknown User' }}</span>
+                    <a [routerLink]="['/profile', targetItem.postedBy.id]" class="text-sm font-medium text-gray-900 hover:text-indigo-600 transition-colors">{{ targetItem.postedBy.name || 'Unknown User' }}</a>
                     @if (targetItem.postedBy.username) {
                       <span class="text-xs text-gray-500">{{ atSymbol }}{{ targetItem.postedBy.username }}</span>
                     }
@@ -128,13 +139,13 @@
           
           <button
             (click)="addCash()"
-            [disabled]="cashTopUp === targetItem.referenceValue"
+            [disabled]="cashTopUp === (targetItem.listingPrice || targetItem.referenceValue) || isOwnListing"
             class="w-full py-2 rounded-lg text-sm font-semibold
                   bg-green-600 text-white
                   disabled:bg-gray-300 disabled:text-gray-500
                   hover:bg-green-700 transition"
           >
-            Offer RM {{ targetItem.referenceValue | number:'1.2-2' }} Cash
+            Offer RM {{ (targetItem.listingPrice || targetItem.referenceValue) | number:'1.2-2' }} Cash
           </button>
 
           <!-- Cash Input Section -->
@@ -150,7 +161,8 @@
                   placeholder="0.00"
                   min="0"
                   step="0.1"
-                  class="w-full pl-6 pr-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-green-400 focus:border-transparent bg-white text-gray-900"
+                  [disabled]="isOwnListing"
+                  class="w-full pl-6 pr-2 py-1 text-xs border border-gray-300 rounded-md focus:ring-1 focus:ring-green-400 focus:border-transparent bg-white text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
               </div>
             </div>
@@ -179,11 +191,14 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 max-h-64 overflow-y-auto pr-2 no-scrollbar">
             @for (item of myCollection; track item.item_id) {
               <div 
-                (click)="toggleSelection(item)"
+                (click)="!isOwnListing && toggleSelection(item)"
                 [class.ring-2]="selectedItems.has(item.item_id)"
                 [class.ring-accent-500]="selectedItems.has(item.item_id)"
                 [class.bg-accent-50]="selectedItems.has(item.item_id)"
-                class="relative cursor-pointer p-3 rounded-2xl border border-gray-200 hover:border-accent-300 transition-all group"
+                [class.cursor-pointer]="!isOwnListing"
+                [class.cursor-not-allowed]="isOwnListing"
+                [class.opacity-50]="isOwnListing"
+                class="relative p-3 rounded-2xl border border-gray-200 hover:border-accent-300 transition-all group"
               >
                 <div class="aspect-square bg-gray-50 rounded-xl p-2 mb-2 group-hover:bg-white transition-colors">
                   <img [src]="item.imageUrl" [alt]="item.name" class="w-full h-full object-contain">
@@ -218,11 +233,12 @@
                 <span class="text-sm text-gray-600" [class.font-bold]="!buyerPaysCash" [class.text-blue-600]="!buyerPaysCash">Seller pays</span>
                 
                 <!-- Custom Slide Toggle -->
-                <label class="relative inline-flex items-center cursor-pointer">
+                <label class="relative inline-flex items-center" [class.cursor-pointer]="!isOwnListing" [class.cursor-not-allowed]="isOwnListing" [class.opacity-50]="isOwnListing">
                   <input 
                     type="checkbox" 
                     [(ngModel)]="buyerPaysCash"
                     [checked]="buyerPaysCash"
+                    [disabled]="isOwnListing"
                     class="sr-only peer"
                   >
                   <div class="w-11 h-6 bg-blue-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-600"></div>
@@ -241,7 +257,8 @@
                 <input 
                   type="number" 
                   [(ngModel)]="cashTopUp"
-                  class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-transparent bg-white text-gray-900"
+                  [disabled]="isOwnListing"
+                  class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-transparent bg-white text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
               </div>
             </div>
@@ -263,12 +280,13 @@
       <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 order-1 sm:order-2">
         <button 
           (click)="onChatWithSeller()"
-          class="border-2 sm:border-4 border-purple-500 text-purple-600 hover:bg-purple-500 hover:text-white text-xs sm:text-sm font-bold transition-all px-3 sm:px-4 py-2 rounded-lg bg-white shadow-md hover:shadow-lg" style="border-color: #9333ea !important;">
+          [disabled]="isOwnListing"
+          class="border-2 sm:border-4 border-purple-500 text-purple-600 hover:bg-purple-500 hover:text-white text-xs sm:text-sm font-bold transition-all px-3 sm:px-4 py-2 rounded-lg bg-white shadow-md hover:shadow-lg disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-300 disabled:cursor-not-allowed" [style.border-color]="!isOwnListing ? '#9333ea' : ''">
           Chat with Seller
         </button>
         <button 
           (click)="sendOffer()"
-          [disabled]="(selectedItems.size === 0 && cashTopUp === 0) || valueComparison === 'Too Low!'"
+          [disabled]="(selectedItems.size === 0 && cashTopUp === 0) || valueComparison === 'Too Low!' || isOwnListing"
           class="bg-gray-900 text-white disabled:bg-gray-300 disabled:cursor-not-allowed px-4 sm:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-base font-bold transition-all transform hover:scale-105 shadow-lg"
         >
           Send Trade Offer
