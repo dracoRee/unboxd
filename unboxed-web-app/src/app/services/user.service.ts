@@ -8,6 +8,7 @@ const host_url = environment.apiBaseUrl;
 export interface UserProfile {
   id: number;
   name: string;
+  username: string;
   email: string;
   bio?: string;
   profilePicture?: string;

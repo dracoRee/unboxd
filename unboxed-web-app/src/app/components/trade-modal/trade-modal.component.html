@@ -180,9 +180,9 @@
             @for (item of myCollection; track item.item_id) {
               <div 
                 (click)="toggleSelection(item)"
-                [class.ring-2]="item.collectible_id && selectedItems.has(item.collectible_id)"
-                [class.ring-accent-500]="item.collectible_id && selectedItems.has(item.collectible_id)"
-                [class.bg-accent-50]="item.collectible_id && selectedItems.has(item.collectible_id)"
+                [class.ring-2]="selectedItems.has(item.item_id)"
+                [class.ring-accent-500]="selectedItems.has(item.item_id)"
+                [class.bg-accent-50]="selectedItems.has(item.item_id)"
                 class="relative cursor-pointer p-3 rounded-2xl border border-gray-200 hover:border-accent-300 transition-all group"
               >
                 <div class="aspect-square bg-gray-50 rounded-xl p-2 mb-2 group-hover:bg-white transition-colors">
@@ -192,7 +192,7 @@
                 <span class="text-[10px] font-black text-gray-500">RM{{ item.referenceValue }}</span>
                 
                 <!-- Selection Indicator -->
-                @if (item.collectible_id && selectedItems.has(item.collectible_id)) {
+                @if (selectedItems.has(item.item_id)) {
                   <div class="absolute top-2 right-2 w-5 h-5 bg-accent-500 rounded-full flex items-center justify-center shadow-sm">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />

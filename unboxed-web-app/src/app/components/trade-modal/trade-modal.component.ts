@@ -41,17 +41,17 @@ export class TradeModalComponent implements OnInit {
   }
 
   toggleSelection(item: TradeItem) {
-    const collectibleId = Number(item.collectible_id);
+    const listingId = Number(item.item_id);
 
-    if (!collectibleId) {
-      console.warn('Item missing collectible_id', item);
+    if (!listingId) {
+      console.warn('Item missing item_id', item);
       return;
     }
 
-    if (this.selectedItems.has(collectibleId)) {
-      this.selectedItems.delete(collectibleId);
+    if (this.selectedItems.has(listingId)) {
+      this.selectedItems.delete(listingId);
     } else {
-      this.selectedItems.add(collectibleId);
+      this.selectedItems.add(listingId);
     }
   }
 
@@ -62,7 +62,7 @@ export class TradeModalComponent implements OnInit {
 
   get totalOfferedValue(): number {
     const itemsValue = this.myCollection
-      .filter(item => this.selectedItems.has(Number(item.collectible_id)))
+      .filter(item => this.selectedItems.has(Number(item.item_id)))
       .reduce((sum, item) => sum + item.referenceValue, 0);
     return itemsValue + (this.buyerPaysCash ? this.cashTopUp : -this.cashTopUp);
   }
@@ -152,7 +152,20 @@ export class TradeModalComponent implements OnInit {
       return;
     }
     
-    const offeredIds = Array.from(this.selectedItems);
+    const offeredIds = Array.from(
+      new Set(
+        this.myCollection
+          .filter(item => this.selectedItems.has(Number(item.item_id)))
+          .map(item => item.collectible_id)
+          .filter((id): id is number => typeof id === 'number' && !Number.isNaN(id))
+      )
+    );
+
+    if (offeredIds.length === 0 && this.cashTopUp === 0) {
+      alert('Please select at least one valid item to offer.');
+      return;
+    }
+
     console.log('Sending offered collectible IDs:', offeredIds);
     
     // Use postedBy.id as receiver, since ownerId may not be set
