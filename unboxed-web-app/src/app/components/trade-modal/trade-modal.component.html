@@ -261,7 +261,9 @@
         Cancel
       </button>
       <div class="flex items-center gap-3">
-        <button class="border-4 border-purple-500 text-purple-600 hover:bg-purple-500 hover:text-white text-sm font-bold transition-all px-4 py-2 rounded-lg bg-white shadow-md hover:shadow-lg" style="border-color: #9333ea !important;">
+        <button 
+          (click)="onChatWithSeller()"
+          class="border-4 border-purple-500 text-purple-600 hover:bg-purple-500 hover:text-white text-sm font-bold transition-all px-4 py-2 rounded-lg bg-white shadow-md hover:shadow-lg" style="border-color: #9333ea !important;">
           Chat with Seller
         </button>
         <button 
