@@ -155,7 +155,7 @@
                       {{ trade.counterparty.username.charAt(0).toUpperCase() || 'U' }}
                     </div>
                   }
-                  <span class="text-sm font-medium text-indigo-600">{{atSymbol}}{{ trade.counterparty?.username || 'User_' + trade.id }}</span>
+                  <span class="text-sm font-medium text-indigo-600">{{atSymbol}}{{ trade.counterparty.username || 'User_' + trade.id }}</span>
                 </div>
               </div>
 
