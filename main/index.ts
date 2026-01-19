@@ -840,16 +840,17 @@ app.patch('/trades/:id', async (req, res) => {
 
 // Wishlist API
 app.post('/wishlist', async (req, res) => {
-  const { userId, collectibleId } = req.body;
+  const { userId, listingId } = req.body;
   try {
     const item = await prisma.wishlistItem.create({
       data: {
         userId: parseInt(userId),
-        collectibleId: parseInt(collectibleId)
+        listingId: parseInt(listingId)
       }
     });
     res.status(201).json(item);
   } catch (error) {
+    console.error('Add to wishlist error:', error);
     res.status(500).json({ error: 'Failed to add to wishlist' });
   }
 });
@@ -860,28 +861,39 @@ app.get('/wishlist/:userId', async (req, res) => {
     const wishlist = await prisma.wishlistItem.findMany({
       where: { userId: parseInt(userId) },
       include: {
-        collectible: { include: { series: true } }
+        listing: {
+          include: {
+            collectible: { include: { series: true } },
+            user: { include: { user: true } }
+          }
+        }
       }
     });
-    res.json(wishlist.map(w => w.collectible));
+    // Map to return the listing (which contains the collectible)
+    res.json(wishlist.map(w => ({
+      ...w.listing,
+      // Ensure it matches the TradeItem expectation if needed, or let frontend map it
+    })));
   } catch (error) {
+    console.error('Fetch wishlist error:', error);
     res.status(500).json({ error: 'Failed to fetch wishlist' });
   }
 });
 
-app.delete('/wishlist/:userId/:collectibleId', async (req, res) => {
-  const { userId, collectibleId } = req.params;
+app.delete('/wishlist/:userId/:listingId', async (req, res) => {
+  const { userId, listingId } = req.params;
   try {
     await prisma.wishlistItem.delete({
       where: {
-        userId_collectibleId: {
+        userId_listingId: {
           userId: parseInt(userId),
-          collectibleId: parseInt(collectibleId)
+          listingId: parseInt(listingId)
         }
       }
     });
     res.json({ message: 'Removed from wishlist' });
   } catch (error) {
+    console.error('Remove from wishlist error:', error);
     res.status(500).json({ error: 'Failed to remove from wishlist' });
   }
 });
@@ -1775,11 +1787,20 @@ app.patch('/listings/:id/availability', async (req, res) => {
   try {
     const { id } = req.params;
     const { isAvailableForTrade } = req.body;
+    const listingId = parseInt(id);
 
     const listing = await prisma.userListing.update({
-      where: { id: parseInt(id) },
+      where: { id: listingId },
       data: { isAvailableForTrade }
     });
+
+    // If listing is no longer available, remove it from all wishlists
+    if (!isAvailableForTrade) {
+      await prisma.wishlistItem.deleteMany({
+        where: { listingId }
+      });
+      console.log(`Automatically removed listing ${listingId} from all wishlists as it is no longer available.`);
+    }
 
     res.json(listing);
   } catch (error) {

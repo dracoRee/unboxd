@@ -4,35 +4,19 @@ import { TradeService } from '../../services/trade.service';
 import { AuthService } from '../../services/auth.service';
 import { TradeItem } from '../../models/trade-item.model';
 
+import { TradeCardComponent } from '../../components/trade-card/trade-card.component';
+
 @Component({
   selector: 'app-wishlist',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, TradeCardComponent],
   template: `
     <div class="container mx-auto px-4 py-8">
       <h1 class="text-3xl font-bold mb-8">My Wishlist</h1>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         @for (item of wishlist; track item.item_id) {
-          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden group">
-            <div class="relative aspect-square overflow-hidden">
-              <img [src]="item.imageUrl" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500">
-              <button (click)="removeFromWishlist(item.item_id)" 
-                      class="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-full text-red-500 shadow-sm hover:bg-red-50 transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fill-rule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clip-rule="evenodd" />
-                </svg>
-              </button>
-            </div>
-            <div class="p-4">
-              <p class="text-xs text-indigo-600 font-bold uppercase tracking-wider mb-1">{{ item.series }}</p>
-              <h3 class="font-bold text-gray-900 mb-2 truncate">{{ item.name }}</h3>
-              <div class="flex justify-between items-center">
-                <span class="text-lg font-black text-black">\${{ item.referenceValue }}</span>
-                <span class="text-xs px-2 py-1 bg-gray-100 rounded-md font-medium text-gray-600">{{ item.rarity }}</span>
-              </div>
-            </div>
-          </div>
+          <app-trade-card [item]="item" [showFavourite]="false"></app-trade-card>
         } @empty {
           <div class="col-span-full bg-white p-12 rounded-3xl border border-gray-100 text-center">
             <div class="w-20 h-20 bg-pink-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -73,10 +57,4 @@ export class WishlistComponent implements OnInit {
     });
   }
 
-  removeFromWishlist(collectibleId: string) {
-    if (!this.userId) return;
-    this.tradeService.removeFromWishlist(this.userId, parseInt(collectibleId)).subscribe(() => {
-      this.loadWishlist();
-    });
-  }
 }

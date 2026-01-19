@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, effect } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -19,46 +20,7 @@ import { Subscription } from 'rxjs';
         <div class="p-4 border-b border-gray-100">
           <h2 class="text-xl font-bold mb-4">Chats</h2>
           
-          <!-- New Chat Button -->
-          <button (click)="showNewChat = true" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            New Chat
-          </button>
         </div>
-
-        <!-- Search Popover (simulated inside sidebar for prototype) -->
-        @if (showNewChat) {
-          <div class="p-4 bg-gray-50 border-b border-gray-200 animate-slide-down">
-            <div class="flex justify-between items-center mb-2">
-              <span class="text-xs font-bold text-gray-500 uppercase">New Message To:</span>
-              <button (click)="showNewChat = false" class="text-gray-400 hover:text-gray-600">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-            <input type="text" 
-                   [(ngModel)]="searchQuery" 
-                   (input)="onSearch()"
-                   placeholder="Search users..."
-                   class="w-full px-3 py-2 border rounded-lg text-sm mb-2 focus:outline-none focus:border-indigo-500">
-            
-            <div class="max-h-40 overflow-y-auto bg-white rounded-lg border border-gray-100">
-              @for (user of searchResults; track user.id) {
-                <button (click)="startChat(user)" class="w-full text-left px-3 py-2 hover:bg-indigo-50 text-sm flex items-center gap-2">
-                  <img [src]="user.profilePicture || '/default-avatar.png'" 
-                       [alt]="user.name"
-                       class="w-6 h-6 rounded-full object-cover border border-gray-200">
-                  {{ user.name }}
-                </button>
-              } @empty {
-                @if (searchQuery) { <div class="p-2 text-xs text-center text-gray-400">No users found</div> }
-              }
-            </div>
-          </div>
-        }
 
         <!-- Conversations List -->
         <div class="flex-1 overflow-y-auto">
@@ -172,7 +134,8 @@ export class ChatPageComponent implements OnInit, OnDestroy {
 
   constructor(
     private messagingService: MessagingService,
-    private authService: AuthService
+    private authService: AuthService,
+    private route: ActivatedRoute
   ) {
     this.currentUser = this.authService.currentUser();
     
@@ -197,6 +160,15 @@ export class ChatPageComponent implements OnInit, OnDestroy {
       });
       // Setup socket listener for new messages
       this.setupSocketListener();
+
+      // Auto-select conversation if convId is in URL
+      const convId = this.route.snapshot.queryParamMap.get('convId');
+      if (convId) {
+        const targetConv = this.conversations.find(c => c.id === parseInt(convId));
+        if (targetConv) {
+          this.selectConversation(targetConv);
+        }
+      }
     });
   }
 

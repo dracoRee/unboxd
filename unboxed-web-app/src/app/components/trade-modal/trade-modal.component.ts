@@ -1,8 +1,11 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { TradeItem } from '../../models/trade-item.model';
 import { TradeService } from '../../services/trade.service';
+import { MessagingService } from '../../services/messaging.service';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-trade-modal',
@@ -24,7 +27,12 @@ export class TradeModalComponent implements OnInit {
   showFullDescription = false;
   buyerPaysCash = true;
 
-  constructor(private tradeService: TradeService) {}
+  constructor(
+    private tradeService: TradeService,
+    private messagingService: MessagingService,
+    private authService: AuthService,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
     this.tradeService.getMyCollection().subscribe(items => {
@@ -154,6 +162,32 @@ export class TradeModalComponent implements OnInit {
       error: (err) => {
         console.error('Failed to send trade', err);
         alert('Failed to send trade offer. Please try again.');
+      }
+    });
+  }
+
+  onChatWithSeller() {
+    const buyerId = this.authService.backendUser()?.id;
+    const sellerId = parseInt(this.targetItem.ownerId || this.targetItem.postedBy.id.toString());
+    
+    if (!buyerId) {
+      alert('Please log in to chat with the seller');
+      return;
+    }
+
+    if (buyerId === sellerId) {
+      alert('You cannot chat with yourself');
+      return;
+    }
+
+    this.messagingService.createConversation([buyerId, sellerId]).subscribe({
+      next: (conv) => {
+        this.close.emit();
+        this.router.navigate(['/chat'], { queryParams: { convId: conv.id } });
+      },
+      error: (err) => {
+        console.error('Failed to initiate chat', err);
+        alert('Could not start conversation. Please try again.');
       }
     });
   }

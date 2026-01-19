@@ -26,6 +26,8 @@ export class TradeService {
   proposeTrade$ = this.proposeTradeSource.asObservable();
 
   private itemsSubject = new BehaviorSubject<TradeItem[]>([]);
+  private wishlistSubject = new BehaviorSubject<TradeItem[]>([]);
+  wishlist$ = this.wishlistSubject.asObservable();
   private filtersSubject = new BehaviorSubject<TradeFilters>({
     search: '',
     category: 'All',
@@ -34,6 +36,8 @@ export class TradeService {
     maxValue: 500
   });
   filters$ = this.filtersSubject.asObservable();
+
+  private wishlistedIds = new Set<number>();
 
   filteredItems$ = combineLatest([this.itemsSubject, this.filtersSubject]).pipe(
     map(([items, filters]) => {
@@ -69,7 +73,8 @@ export class TradeService {
    * Now fetches valid UserListings instead of raw collectibles
    */
   refreshCatalog() {
-    from(this.supabaseService.getAvailableListings()).pipe(
+    this.refreshWishlistStatus().pipe(
+      switchMap(() => from(this.supabaseService.getAvailableListings())),
       map(items => items.map(item => this.mapToTradeItem(item))),
       catchError(error => {
         console.error('Error fetching items from Supabase:', error);
@@ -78,6 +83,29 @@ export class TradeService {
     ).subscribe(items => {
       this.itemsSubject.next(items);
     });
+  }
+
+  private refreshWishlistStatus(): Observable<void> {
+    const userId = this.authService.backendUser()?.id;
+    if (!userId) {
+      this.wishlistedIds.clear();
+      return of(undefined);
+    }
+
+    return this.http.get<any[]>(`${this.apiUrl}/wishlist/${userId}`).pipe(
+      map(listings => {
+        this.wishlistedIds.clear();
+        const mappedListings = listings.map(listing => this.mapToTradeItem(listing));
+        mappedListings.forEach(item => {
+          if (item.item_id) this.wishlistedIds.add(parseInt(item.item_id));
+        });
+        this.wishlistSubject.next(mappedListings);
+      }),
+      catchError(error => {
+        console.error('Failed to refresh wishlist status', error);
+        return of(undefined);
+      })
+    );
   }
 
   /**
@@ -105,20 +133,29 @@ export class TradeService {
     let ownerAvatar: string | undefined;
     let ownerUsername: string | undefined;
 
-    if (item.Collectible) {
+    if (item.Collectible || item.collectible) {
       // It's a UserListing (or similar wrapper)
-      collectible = item.Collectible;
+      collectible = item.Collectible || item.collectible;
       listingId = item.id?.toString() || '';
       
       // Handle user information
       // 1. Check for PublicUser at the root (from getAvailableListings)
       // 2. Check for User/user object (legacy or other queries)
       
-      if (item.PublicUser) {
-        ownerId = item.PublicUser.id?.toString();
-        ownerName = item.PublicUser.name;
-        ownerUsername = item.PublicUser.username;
-        ownerAvatar = item.PublicUser.profilePicture;
+      const publicUserObj = item.PublicUser || item.publicUser;
+      if (publicUserObj) {
+        ownerId = publicUserObj.id?.toString();
+        ownerName = publicUserObj.name;
+        ownerUsername = publicUserObj.username;
+        ownerAvatar = publicUserObj.profilePicture;
+
+        // Also check nested user object (User table) for fallback data
+        const userObj = publicUserObj.user || publicUserObj.User;
+        if (userObj) {
+          ownerName = ownerName || userObj.name;
+          ownerAvatar = ownerAvatar || userObj.profilePicture;
+          ownerUsername = ownerUsername || userObj.username;
+        }
       } else {
         const userObj = item.User || item.user;
         if (userObj) {
@@ -172,8 +209,9 @@ export class TradeService {
       };
     }
 
-    const series = collectible.Series || item.Series; // fallback if Series is on root (unlikely for UserListing)
+    const series = collectible.Series || collectible.series || item.Series || item.series; // fallback if Series is on root
     const userObj = item.User || item.user;
+    const publicUserObj = collectible.PublicUser || collectible.publicUser || item.PublicUser || item.publicUser;
     const resolvedName = userObj?.name || ownerName || `User_${item.userId ?? collectible.userId ?? 'NA'}`;
     const resolvedAvatar = ownerAvatar;
     const resolvedUsername = ownerUsername;
@@ -181,19 +219,20 @@ export class TradeService {
     
     return {
       item_id: listingId,
+      isFavourited: this.wishlistedIds.has(parseInt(listingId)),
       collectible_id: collectible.id?.toString(),
       listingTitle: item.title,
       name: collectible.name,
       series: series?.name || 'Unknown Series',
       rarity: collectible.rarity,
       referenceValue: collectible.referenceValue || 0,
-      listingPrice: item.listingPrice || 0,
-      imageUrl: item.imageUrl,
-      isFeatured: collectible.referenceValue > 40,
-      status: collectible.status || 'available',
-      description: item.description || 'No Available Description.',
-      condition: item.condition || 'No Available Condition.',
-      listedAt: item.createdAt ? new Date(item.createdAt) : new Date(),
+      listingPrice: item.listingPrice || item.referenceValue || 0,
+      imageUrl: item.imageUrl || collectible.imageUrl,
+      isFeatured: (collectible.referenceValue || 0) > 40,
+      status: item.status?.toLowerCase() || collectible.status?.toLowerCase() || 'available',
+      description: item.description || collectible.description || 'No Available Description.',
+      condition: item.condition || collectible.condition || 'No Available Condition.',
+      listedAt: item.createdAt ? new Date(item.createdAt) : (collectible.createdAt ? new Date(collectible.createdAt) : new Date()),
       postedBy: {
         id: resolvedUserId,
         name: resolvedName,
@@ -300,20 +339,38 @@ export class TradeService {
 
   // Wishlist
   getWishlist(userId: number): Observable<TradeItem[]> {
-    return from(this.supabaseService.getUserWishlist(userId)).pipe(
-      map(data => data.map(row => this.mapToTradeItem(row.Collectible))),
-      catchError(error => {
-        console.error('Error in getWishlist:', error);
-        return of([]);
+    this.refreshWishlistStatus().subscribe();
+    return this.wishlist$;
+  }
+
+  addToWishlist(userId: number, listingId: number): Observable<any> {
+    return this.http.post(`${this.apiUrl}/wishlist`, { userId, listingId }).pipe(
+      tap(() => {
+        this.wishlistedIds.add(listingId);
+        this.updateItemFavouritedStatus(listingId, true);
+        this.refreshWishlistStatus().subscribe();
       })
     );
   }
 
-  addToWishlist(userId: number, collectibleId: number): Observable<any> {
-    return this.http.post(`${this.apiUrl}/wishlist`, { userId, collectibleId });
+  removeFromWishlist(userId: number, listingId: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/wishlist/${userId}/${listingId}`).pipe(
+      tap(() => {
+        this.wishlistedIds.delete(listingId);
+        this.updateItemFavouritedStatus(listingId, false);
+        this.refreshWishlistStatus().subscribe();
+      })
+    );
   }
 
-  removeFromWishlist(userId: number, collectibleId: number): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/wishlist/${userId}/${collectibleId}`);
+  private updateItemFavouritedStatus(listingId: number, isFavourited: boolean) {
+    const currentItems = this.itemsSubject.value;
+    const updatedItems = currentItems.map(item => {
+      if (parseInt(item.item_id) === listingId) {
+        return { ...item, isFavourited };
+      }
+      return item;
+    });
+    this.itemsSubject.next(updatedItems);
   }
 }

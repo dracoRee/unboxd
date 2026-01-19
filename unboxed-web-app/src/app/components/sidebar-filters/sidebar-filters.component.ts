@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { TradeService } from '../../services/trade.service';
+import { SupabaseService } from '../../services/supabase.service';
+import { Series } from '../../models/series.model';
 
 @Component({
   selector: 'app-sidebar-filters',
@@ -16,12 +18,18 @@ export class SidebarFiltersComponent implements OnInit {
   selectedRarities: string[] = [];
   maxValue: number = 500;
 
+  availableSeries: string[] = [];
+  isLoadingSeries = true;
+
   constructor(
     private tradeService: TradeService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    private supabaseService: SupabaseService
   ) {}
 
-  ngOnInit() {
+  async ngOnInit() {
+    await this.loadSeriesList();
+    
     // 1. Subscribe to global filter changes (e.g. from Reset)
     this.tradeService.filters$.subscribe(filters => {
         // We need to map back 'Series Name Series' to 'Series Name' if possible, OR just rely on logic.
@@ -40,14 +48,31 @@ export class SidebarFiltersComponent implements OnInit {
     this.route.queryParams.subscribe(params => {
       const series = params['series'];
       if (series) {
-        if (!this.selectedSeries.includes(series)) {
-            this.selectedSeries.push(series);
-            // We do NOT call updateFilters here if we want to avoid loops with the subscription above?
-            // Actually, querying params is an *input*. We *should* push to service.
-            this.updateFilters();
-        }
+        // When coming from query params (e.g. Explore page), we set it as the primary filter
+        this.selectedSeries = [series];
+        this.updateFilters();
       }
     });
+  }
+
+  async loadSeriesList() {
+    try {
+      const series = await this.supabaseService.getSeries();
+      this.availableSeries = series.map((s: Series) => s.name);
+    } catch (error) {
+      console.error('Error loading series for filters:', error);
+    } finally {
+      this.isLoadingSeries = false;
+    }
+  }
+
+  toggleSeries(seriesName: string) {
+    if (this.selectedSeries.includes(seriesName)) {
+      this.selectedSeries = this.selectedSeries.filter(s => s !== seriesName);
+    } else {
+      this.selectedSeries.push(seriesName);
+    }
+    this.updateFilters();
   }
 
 
@@ -67,7 +92,7 @@ export class SidebarFiltersComponent implements OnInit {
 
   private updateFilters() {
     this.tradeService.updateFilters({
-      series: this.selectedSeries.length ? this.selectedSeries.map(s => s + ' Series') : [],
+      series: this.selectedSeries,
       rarity: this.selectedRarities,
       maxValue: this.maxValue
     });
