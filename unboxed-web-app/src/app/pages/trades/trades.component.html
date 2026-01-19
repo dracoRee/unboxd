@@ -14,6 +14,12 @@
   </div>
 
   <div class="flex gap-4 mb-8">
+    <button (click)="activeTab = 'listings'" 
+            [class.bg-indigo-600]="activeTab === 'listings'"
+            [class.text-white]="activeTab === 'listings'"
+            class="px-6 py-2 rounded-full font-semibold border border-indigo-600 transition-all">
+      My Listings
+    </button>
     <button (click)="activeTab = 'outgoing'" 
             [class.bg-indigo-600]="activeTab === 'outgoing'"
             [class.text-white]="activeTab === 'outgoing'"
@@ -26,12 +32,7 @@
             class="px-6 py-2 rounded-full font-semibold border border-indigo-600 transition-all">
       Received Offers
     </button>
-    <button (click)="activeTab = 'listings'" 
-            [class.bg-indigo-600]="activeTab === 'listings'"
-            [class.text-white]="activeTab === 'listings'"
-            class="px-6 py-2 rounded-full font-semibold border border-indigo-600 transition-all">
-      My Listings
-    </button>
+    
   </div>
 
   @if (activeTab === 'listings') {

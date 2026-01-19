@@ -54,7 +54,7 @@ export class TradesComponent implements OnInit {
   
   trades: Trade[] = [];
   myListings: UserListing[] = [];
-  activeTab: 'outgoing' | 'incoming' | 'listings' = 'outgoing';
+  activeTab: 'outgoing' | 'incoming' | 'listings' = 'listings';
   userId?: number;
   activeChatTradeId: number | null = null;
   isScanning = false;
@@ -144,9 +144,11 @@ export class TradesComponent implements OnInit {
 
   get filteredTrades() {
     if (!this.userId) return [];
+    console.log("active tab:", this.activeTab)
     return this.trades.filter(t => 
       this.activeTab === 'outgoing' ? t.proposerId === this.userId : t.receiverId === this.userId
     );
+    
   }
 
   updateStatus(tradeId: number, status: string) {

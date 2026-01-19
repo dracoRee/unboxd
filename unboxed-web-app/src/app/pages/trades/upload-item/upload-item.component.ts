@@ -379,4 +379,10 @@ export class UploadItemComponent implements OnInit {
       this.router.navigate(['/trades']);
     }
   }
+
+  formatReferenceValue(): void {
+    if (this.referenceValue !== null && this.referenceValue !== undefined) {
+      this.referenceValue = parseFloat(this.referenceValue.toFixed(2));
+    }
+  }
 }

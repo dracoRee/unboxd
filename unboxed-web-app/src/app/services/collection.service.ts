@@ -24,8 +24,12 @@ export class CollectionService {
     return this.http.post<AIRecognitionResult>(`${this.apiUrl}/ai/recognize`, formData);
   }
 
-  addToCollection(userId: number, seriesId: number, imageUrl: string, name?: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/collection/add`, { userId, seriesId, imageUrl, name });
+  addToCollection(data: FormData): Observable<any> {
+    return this.http.post(`${this.apiUrl}/collection/add`, data);
+  }
+
+  updateCollectible(id: number, data: FormData): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/collection/${id}`, data);
   }
 
   uploadImage(image: File): Observable<any> {

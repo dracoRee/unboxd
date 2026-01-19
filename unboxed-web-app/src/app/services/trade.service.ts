@@ -227,10 +227,14 @@ export class TradeService {
           item_id: row.id?.toString() || '',
           name: row.name || 'Unnamed Item',
           series: series?.name || 'Unknown Series',
-          rarity: 'Unknown', // UserCollectible doesn't have rarity, would need to join with Collectible if needed
-          referenceValue: 0, // UserCollectible doesn't have referenceValue
+          rarity: 'Unknown', 
+          referenceValue: row.referenceValue || 0,
           listingPrice: 0,
-          imageUrl: this.supabaseService.getImageUrl(row.imageUrl, true),
+          // If the URL is already absolute (from new upload system), use it directly. 
+          // Otherwise, fall back to legacy helper.
+          imageUrl: row.imageUrl && row.imageUrl.startsWith('http') 
+            ? row.imageUrl 
+            : this.supabaseService.getImageUrl(row.imageUrl, true),
           isFeatured: false,
           status: 'available' as 'available' | 'pending' | 'traded',
           ownerId: row.userId.toString(),

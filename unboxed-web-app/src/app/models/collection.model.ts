@@ -9,11 +9,15 @@ export interface SeriesProgress {
 export interface CollectibleItem {
   id: number;
   name: string;
-  rarity: string;
-  referenceValue: number;
-  imageUrl: string;
-  seriesId: number;
+  rarity?: string;
+  referenceValue?: number;
+  imageUrl: string | null;
+  seriesId?: number;
   isOwned: boolean;
+  serialNumber?: string;
+  condition?: string;
+  demoVideoUrl?: string;
+  receiptUrl?: string;
 }
 
 export interface AIRecognitionResult {

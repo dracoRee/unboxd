@@ -72,13 +72,18 @@ model Collectible {
 }
 
 model UserCollectible {
-  id       Int     @id @default(autoincrement())
-  userId   Int
-  seriesId Int
-  imageUrl String
-  name     String?
-  series   Series  @relation(fields: [seriesId], references: [id])
-  user     User    @relation(fields: [userId], references: [id])
+  id             Int              @id @default(autoincrement())
+  userId         Int
+  seriesId       Int
+  imageUrl       String
+  name           String?
+  serialNumber   String?
+  demoVideoUrl   String?
+  receiptUrl     String?
+  condition      ListingCondition? @default(BRAND_NEW)
+  referenceValue Float?
+  series         Series           @relation(fields: [seriesId], references: [id])
+  user           User             @relation(fields: [userId], references: [id])
 }
 
 model UserListing {

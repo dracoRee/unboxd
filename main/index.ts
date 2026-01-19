@@ -424,6 +424,11 @@ app.get('/collection/:userId', async (req, res) => {
           id: uc.id,
           name: uc.name || 'Unnamed Item',
           imageUrl: uc.imageUrl,
+          serialNumber: uc.serialNumber,
+          condition: uc.condition,
+          referenceValue: uc.referenceValue,
+          demoVideoUrl: uc.demoVideoUrl,
+          receiptUrl: uc.receiptUrl,
           isOwned: true
         }))
       };
@@ -436,20 +441,138 @@ app.get('/collection/:userId', async (req, res) => {
   }
 });
 
-app.post('/collection/add', async (req, res) => {
-  const { userId, seriesId, name, imageUrl } = req.body;
+app.post('/collection/add', upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'demoVideo', maxCount: 1 },
+  { name: 'receipt', maxCount: 1 }
+]), async (req, res) => {
   try {
+    const { userId, seriesId, name, condition, referenceValue, serialNumber } = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const timestamp = Date.now();
+
+    // 1. Upload main image
+    let imageUrl = req.body.imageUrl; // Could come from "Scan" feature (string URL)
+    if (files?.image?.[0]) {
+      // If manually uploaded
+      const imageFile = files.image[0];
+      imageUrl = await uploadFile(
+        'users-collection',
+        `${userId}/collection/${timestamp}_img.${imageFile.originalname.split('.').pop()}`,
+        imageFile.buffer,
+        imageFile.mimetype
+      );
+    }
+
+    // 2. Upload Demo Video
+    let demoVideoUrl = null;
+    if (files?.demoVideo?.[0]) {
+      const demoVideoFile = files.demoVideo[0];
+      demoVideoUrl = await uploadFile(
+        'users-collection',
+        `${userId}/collection/${timestamp}_demo.${demoVideoFile.originalname.split('.').pop()}`,
+        demoVideoFile.buffer,
+        demoVideoFile.mimetype
+      );
+    }
+
+    // 3. Upload Receipt
+    let receiptUrl = null;
+    if (files?.receipt?.[0]) {
+      const receiptFile = files.receipt[0];
+      receiptUrl = await uploadFile(
+        'users-collection',
+        `${userId}/collection/${timestamp}_receipt.${receiptFile.originalname.split('.').pop()}`,
+        receiptFile.buffer,
+        receiptFile.mimetype
+      );
+    }
+
     const userCollectible = await prisma.userCollectible.create({
       data: {
         userId: parseInt(userId),
         seriesId: parseInt(seriesId),
         name,
-        imageUrl
+        imageUrl: imageUrl || '', // Should enforce requirement in frontend
+        condition: condition || 'BRAND_NEW',
+        referenceValue: referenceValue ? parseFloat(referenceValue) : 0,
+        serialNumber: serialNumber || null,
+        demoVideoUrl,
+        receiptUrl
       }
     });
     res.status(201).json(userCollectible);
   } catch (error) {
+    console.error('Failed to add item to collection:', error);
     res.status(500).json({ error: 'Failed to add item to collection' });
+  }
+});
+
+// Update Collection Item
+app.patch('/collection/:id', upload.fields([
+  { name: 'image', maxCount: 1 },
+  { name: 'demoVideo', maxCount: 1 },
+  { name: 'receipt', maxCount: 1 }
+]), async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { name, condition, referenceValue, serialNumber } = req.body;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    
+    // Check ownership
+    const existingItem = await prisma.userCollectible.findUnique({ where: { id: parseInt(id) } });
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Item not found' });
+    }
+    
+    const timestamp = Date.now();
+    const userId = existingItem.userId;
+    const updates: any = {};
+
+    if (name) updates.name = name;
+    if (condition) updates.condition = condition;
+    if (referenceValue) updates.referenceValue = parseFloat(referenceValue);
+    if (serialNumber) updates.serialNumber = serialNumber;
+
+    if (files?.image?.[0]) {
+      const imageFile = files.image[0];
+      updates.imageUrl = await uploadFile(
+        'users-collection',
+        `${userId}/collection/${timestamp}_img.${imageFile.originalname.split('.').pop()}`,
+        imageFile.buffer,
+        imageFile.mimetype
+      );
+    }
+
+    if (files?.demoVideo?.[0]) {
+      const demoVideoFile = files.demoVideo[0];
+      updates.demoVideoUrl = await uploadFile(
+        'users-collection',
+        `${userId}/collection/${timestamp}_demo.${demoVideoFile.originalname.split('.').pop()}`,
+        demoVideoFile.buffer,
+        demoVideoFile.mimetype
+      );
+    }
+
+    if (files?.receipt?.[0]) {
+      const receiptFile = files.receipt[0];
+      updates.receiptUrl = await uploadFile(
+        'users-collection',
+        `${userId}/collection/${timestamp}_receipt.${receiptFile.originalname.split('.').pop()}`,
+        receiptFile.buffer,
+        receiptFile.mimetype
+      );
+    }
+
+    const updatedItem = await prisma.userCollectible.update({
+      where: { id: parseInt(id) },
+      data: updates
+    });
+
+    res.json(updatedItem);
+  } catch (error) {
+     console.error('Failed to update item:', error);
+     res.status(500).json({ error: 'Failed to update item' });
   }
 });
 
