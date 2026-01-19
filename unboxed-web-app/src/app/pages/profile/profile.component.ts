@@ -22,7 +22,7 @@ export class ProfileComponent implements OnInit {
   editData = { bio: '', profilePicture: '' };
   selectedFile: File | null = null;
   userListings: UserListing[] = [];
-  activeTab: 'collection' | 'activity' | 'listings' = 'collection';
+  activeTab: 'collection' | 'activity' | 'listings' = 'listings';
 
   constructor(
     private route: ActivatedRoute,

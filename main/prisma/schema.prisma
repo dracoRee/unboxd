@@ -120,19 +120,21 @@ model UserListing {
 }
 
 model Trade {
-  id           Int                @id @default(autoincrement())
-  proposerId   Int
-  receiverId   Int
-  targetItemId Int
-  status       String             @default("PENDING")
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  messages     Message[]
-  proposer     User               @relation("ProposedTrades", fields: [proposerId], references: [id])
-  receiver     User               @relation("ReceivedTrades", fields: [receiverId], references: [id])
-  targetItem   Collectible        @relation(fields: [targetItemId], references: [id])
-  offeredItems TradeOfferedItem[]
-  ratings      UserRating[]
+  id            Int                @id @default(autoincrement())
+  proposerId    Int
+  receiverId    Int
+  targetItemId  Int
+  status        String             @default("PENDING")
+  cashAmount    Float              @default(0)
+  buyerPaysCash Boolean            @default(true)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  messages      Message[]
+  proposer      User               @relation("ProposedTrades", fields: [proposerId], references: [id])
+  receiver      User               @relation("ReceivedTrades", fields: [receiverId], references: [id])
+  targetItem    Collectible        @relation(fields: [targetItemId], references: [id])
+  offeredItems  TradeOfferedItem[]
+  ratings       UserRating[]
 }
 
 model TradeOfferedItem {

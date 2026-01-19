@@ -806,9 +806,15 @@ app.post('/trades', async (req, res) => {
   const { proposerId, receiverId, targetItemId, offeredItemIds, buyerPaysCash, cashTopUp } = req.body;
   try {
 
-    // Validate offered item IDs
-    if (!Array.isArray(offeredItemIds) || offeredItemIds.length === 0) {
-      return res.status(400).json({ error: 'offeredItemIds must be a non-empty array of integers' });
+    // Validate offered item IDs - allow empty array if cash is provided
+    if (!Array.isArray(offeredItemIds)) {
+      return res.status(400).json({ error: 'offeredItemIds must be an array' });
+    }
+
+    // Allow empty array for cash-only purchases
+    const hasCash = cashTopUp && parseFloat(cashTopUp) > 0;
+    if (offeredItemIds.length === 0 && !hasCash) {
+      return res.status(400).json({ error: 'Must provide either items or cash for trade offer' });
     }
 
     const offeredIds = offeredItemIds
@@ -829,16 +835,18 @@ app.post('/trades', async (req, res) => {
     if (!proposer) return res.status(400).json({ error: 'Proposer does not exist' });
     if (!receiver) return res.status(400).json({ error: 'Receiver does not exist' });
 
-    // Ensure all offered collectible IDs exist
-    const existingCollectibles = await prisma.collectible.findMany({
-      where: { id: { in: offeredIds } },
-      select: { id: true }
-    });
+    // Ensure all offered collectible IDs exist (only if items are provided)
+    if (offeredIds.length > 0) {
+      const existingCollectibles = await prisma.collectible.findMany({
+        where: { id: { in: offeredIds } },
+        select: { id: true }
+      });
 
-    if (existingCollectibles.length !== offeredIds.length) {
-      const existingIds = new Set(existingCollectibles.map(c => c.id));
-      const missingIds = offeredIds.filter(id => !existingIds.has(id));
-      return res.status(400).json({ error: 'One or more offered collectibles do not exist', missingIds });
+      if (existingCollectibles.length !== offeredIds.length) {
+        const existingIds = new Set(existingCollectibles.map(c => c.id));
+        const missingIds = offeredIds.filter(id => !existingIds.has(id));
+        return res.status(400).json({ error: 'One or more offered collectibles do not exist', missingIds });
+      }
     }
 
     console.log('Offered collectible IDs:', offeredIds);
@@ -848,6 +856,8 @@ app.post('/trades', async (req, res) => {
         receiverId: parseInt(receiverId),
         targetItemId: parseInt(targetItemId),
         status: 'PENDING',
+        cashAmount: cashTopUp ? parseFloat(cashTopUp) : 0,
+        buyerPaysCash: buyerPaysCash !== undefined ? buyerPaysCash : true,
         offeredItems: {
           create: offeredIds.map((id: number) => ({ collectibleId: id }))
         }

@@ -6,6 +6,7 @@ import { TradeService } from '../../services/trade.service';
 import { AuthService } from '../../services/auth.service';
 import { UserService, UserListing } from '../../services/user.service';
 import { CollectionService } from '../../services/collection.service';
+import { MessagingService } from '../../services/messaging.service';
 import { ChatComponent } from '../../components/chat/chat.component';
 
 export interface VerificationChecklist {
@@ -28,6 +29,9 @@ export interface Trade {
     imageUrl: string;
   };
   offeredItems: any[];
+  // Cash payment fields
+  cashAmount: number;
+  buyerPaysCash: boolean;
   // User-Led Verification Fields
   verificationStatus: VerificationStatus;
   verificationChecklist: VerificationChecklist;
@@ -98,6 +102,7 @@ export class TradesComponent implements OnInit {
     private authService: AuthService,
     private userService: UserService,
     private collectionService: CollectionService,
+    private messagingService: MessagingService,
     private router: Router
   ) {
     this.loadVerificationState();
@@ -299,5 +304,29 @@ export class TradesComponent implements OnInit {
   
   // Reset input to allow selecting the same file again if needed
   this.fileInput.nativeElement.value = '';
+}
+
+openChat(counterpartyId: number): void {
+  const currentUserId = this.authService.backendUser()?.id;
+  
+  if (!currentUserId) {
+    alert('Please log in to chat');
+    return;
+  }
+
+  if (currentUserId === counterpartyId) {
+    alert('You cannot chat with yourself');
+    return;
+  }
+
+  this.messagingService.createConversation([currentUserId, counterpartyId]).subscribe({
+    next: (conv) => {
+      this.router.navigate(['/chat'], { queryParams: { convId: conv.id } });
+    },
+    error: (err) => {
+      console.error('Failed to initiate chat', err);
+      alert('Could not start conversation. Please try again.');
+    }
+  });
 }
 }

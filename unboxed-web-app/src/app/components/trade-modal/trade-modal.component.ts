@@ -144,31 +144,57 @@ export class TradeModalComponent implements OnInit {
   }
 
   sendOffer() {
-    if (this.selectedItems.size === 0 && this.cashTopUp === 0) return;
-    if (this.valueComparison === 'Too Low!') return;
+    if (this.selectedItems.size === 0 && this.cashTopUp === 0) {
+      alert('Please select at least one item or add cash to your offer.');
+      return;
+    }
+    
+    if (this.valueComparison === 'Too Low!') {
+      alert('Your offer is too low. Please add more items or cash.');
+      return;
+    }
     
     if (!this.targetItem.collectible_id) {
       alert('This item is not available for trade.');
       return;
     }
     
+    // Get selected items with their collectible IDs
+    const selectedCollectibles = this.myCollection
+      .filter(item => this.selectedItems.has(Number(item.item_id)))
+      .map(item => ({
+        item_id: item.item_id,
+        collectible_id: item.collectible_id,
+        name: item.name
+      }));
+    
+    // Check if any selected items don't have collectible IDs (only if items are selected)
+    if (selectedCollectibles.length > 0) {
+      const itemsWithoutCollectibleId = selectedCollectibles.filter(item => !item.collectible_id);
+      if (itemsWithoutCollectibleId.length > 0) {
+        const itemNames = itemsWithoutCollectibleId.map(item => item.name).join(', ');
+        alert(`The following items cannot be traded because they are not from the catalog: ${itemNames}. Please select only items from the official collectible catalog.`);
+        return;
+      }
+    }
+    
     const offeredIds = Array.from(
       new Set(
-        this.myCollection
-          .filter(item => this.selectedItems.has(Number(item.item_id)))
+        selectedCollectibles
           .map(item => item.collectible_id)
-          .filter((id): id is number => typeof id === 'number' && !Number.isNaN(id))
+          .filter((id): id is number => typeof id === 'number' && !Number.isNaN(id) && id > 0)
       )
     );
 
+    // Allow pure cash purchases (empty offeredIds array is OK if cashTopUp > 0)
     if (offeredIds.length === 0 && this.cashTopUp === 0) {
-      alert('Please select at least one valid item to offer.');
+      alert('Please select at least one valid item from the catalog or add cash to your offer.');
       return;
     }
 
     console.log('Sending offered collectible IDs:', offeredIds);
     
-    // Use postedBy.id as receiver, since ownerId may not be set
+    // Use postedBy.id as receiver
     const receiverId = this.targetItem.postedBy.id;
 
     // Prevent trading with yourself
@@ -187,7 +213,8 @@ export class TradeModalComponent implements OnInit {
       },
       error: (err) => {
         console.error('Failed to send trade', err);
-        alert('Failed to send trade offer. Please try again.');
+        const errorMsg = err?.error?.error || 'Failed to send trade offer. Please try again.';
+        alert(errorMsg);
       }
     });
   }

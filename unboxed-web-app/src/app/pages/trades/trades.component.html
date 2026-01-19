@@ -144,9 +144,19 @@
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div class="p-6">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-4">
-              <div class="flex flex-col">
+              <div class="flex flex-col gap-2">
                 <span class="text-[10px] text-gray-400 font-mono uppercase">Trade ID: #{{ trade.id }}</span>
-                <p class="text-sm font-medium text-indigo-600">Trading with: {{atSymbol}}{{ trade.counterparty?.username || 'User_' + trade.id }}</p>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium text-gray-600">Trading with:</span>
+                  @if (trade.counterparty.profilePicture) {
+                    <img [src]="trade.counterparty.profilePicture" class="w-6 h-6 rounded-full object-cover border border-gray-200">
+                  } @else {
+                    <div class="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 text-xs font-bold">
+                      {{ trade.counterparty.username.charAt(0).toUpperCase() || 'U' }}
+                    </div>
+                  }
+                  <span class="text-sm font-medium text-indigo-600">{{atSymbol}}{{ trade.counterparty?.username || 'User_' + trade.id }}</span>
+                </div>
               </div>
 
               <div class="flex items-center gap-2">
@@ -170,6 +180,15 @@
                 <div>
                   <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Requested</p>
                   <h3 class="font-bold text-gray-900 line-clamp-1">{{ trade.targetItem.name }}</h3>
+                  @if (!trade.buyerPaysCash && trade.cashAmount > 0) {
+                    <div class="mt-2 px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-bold flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd" />
+                      </svg>
+                      + RM {{ trade.cashAmount | number:'1.2-2' }}
+                    </div>
+                  }
                 </div>
               </div>
 
@@ -185,6 +204,15 @@
                 <div class="text-right">
                   <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Offered</p>
                   <p class="text-xs font-medium text-gray-700">{{ trade.offeredItems.length }} item(s)</p>
+                  @if (trade.buyerPaysCash && trade.cashAmount > 0) {
+                    <div class="mt-2 px-2 py-1 bg-green-100 text-green-700 rounded-lg text-xs font-bold inline-flex items-center gap-1">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd" />
+                      </svg>
+                      + RM {{ trade.cashAmount | number:'1.2-2' }}
+                    </div>
+                  }
                 </div>
                 <div class="flex -space-x-4">
                   @for (offer of trade.offeredItems; track offer.id) {
@@ -202,13 +230,18 @@
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" [class.rotate-180]="trade.showVerification" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
-                Buyer Verification Checklist
+                {{ activeTab === 'outgoing' ? 'Seller Verification Checklist' : 'Buyer Verification Checklist' }}
                 <span class="ml-2 px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full text-[10px]">
                   {{ getProgressCount(trade) }}/5
                 </span>
               </button>
 
               <div class="flex gap-3">
+                <button (click)="openChat(trade.counterparty.id)" 
+                        class="border-2 border-purple-500 text-purple-600 hover:bg-purple-500 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all bg-white shadow-sm hover:shadow-md"
+                        style="border-color: #9333ea !important;">
+                  Chat with {{ activeTab === 'outgoing' ? 'Seller' : 'Buyer' }}
+                </button>
                 @if (activeTab === 'incoming' && trade.status === 'PENDING') {
                   <button (click)="updateStatus(trade.id, 'ACCEPTED')" 
                           class="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-bold hover:bg-green-600 transition-all">
@@ -231,7 +264,7 @@
                      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Buyer Verification Checklist
+                    {{ activeTab === 'outgoing' ? 'Seller Verification Checklist' : 'Buyer Verification Checklist' }}
                   </h4>
                   
                   <div class="w-full bg-gray-200 rounded-full h-1.5 mb-6">
@@ -252,10 +285,40 @@
                         </div>
                         <div class="flex flex-col">
                           <label [for]="trade.id + '-' + item.key" class="text-sm font-bold text-gray-800 cursor-pointer">
-                            {{ item.label }}
+                            @if (activeTab === 'incoming') {
+                              @if (item.key === 'reviewsChecked') {
+                                Checked buyer reviews and past trades
+                              } @else if (item.key === 'meetupArranged') {
+                                Coordinated secure meetup location
+                              } @else if (item.key === 'itemInspected') {
+                                Prepared item for buyer inspection
+                              } @else if (item.key === 'proofRequested') {
+                                Provided detailed photos/video to buyer
+                              } @else if (item.key === 'authenticityVerified') {
+                                Disclosed item condition and authenticity proof
+                              } @else {
+                                {{ item.label }}
+                              }
+                            } @else {
+                              {{ item.label }}
+                            }
                           </label>
                           <span class="text-xs text-gray-500 mt-1 leading-relaxed">
-                            {{ item.helper }}
+                            @if (activeTab === 'incoming') {
+                              @if (item.key === 'meetupArranged') {
+                                Propose meeting in a safe public location such as a mall or café during daylight hours.
+                              } @else if (item.key === 'itemInspected') {
+                                Ensure item is clean and ready. Disclose any scratches, box damage, or imperfections upfront.
+                              } @else if (item.key === 'proofRequested') {
+                                Share clear photos from multiple angles and a video showcasing the item's condition and authenticity markers.
+                              } @else if (item.key === 'authenticityVerified') {
+                                Provide original receipt, authenticity certificate, or serial number documentation to verify legitimacy.
+                              } @else {
+                                {{ item.helper }}
+                              }
+                            } @else {
+                              {{ item.helper }}
+                            }
                           </span>
                         </div>
                       </div>

@@ -1,10 +1,10 @@
-<div class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-  <div class="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden animate-in fade-in zoom-in duration-300">
+<div class="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-4 bg-gray-900/60 backdrop-blur-sm">
+  <div class="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col">
     <!-- Header -->
-    <div class="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+    <div class="px-4 sm:px-8 py-3 sm:py-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
       <div>
-        <h2 class="text-2xl font-black text-gray-900">Propose Trade</h2>
-        <p class="text-sm text-gray-500">Select items from your collection to offer</p>
+        <h2 class="text-lg sm:text-2xl font-black text-gray-900">Propose Trade</h2>
+        <p class="text-xs sm:text-sm text-gray-500">Select items from your collection to offer</p>
       </div>
       <button (click)="close.emit()" class="p-2 hover:bg-gray-200 rounded-full transition-colors">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -13,7 +13,7 @@
       </button>
     </div>
 
-    <div class="p-8 max-h-[70vh] overflow-y-auto">
+    <div class="p-4 sm:p-8 overflow-y-auto flex-1">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
         <!-- Target Item (What you want) -->
         <div>
@@ -256,20 +256,20 @@
     </div>
 
     <!-- Footer -->
-    <div class="px-8 py-6 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-      <button (click)="close.emit()" class="text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors">
+    <div class="px-4 sm:px-8 py-3 sm:py-6 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-0">
+      <button (click)="close.emit()" class="text-xs sm:text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors order-2 sm:order-1 py-2 sm:py-0">
         Cancel
       </button>
-      <div class="flex items-center gap-3">
+      <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 order-1 sm:order-2">
         <button 
           (click)="onChatWithSeller()"
-          class="border-4 border-purple-500 text-purple-600 hover:bg-purple-500 hover:text-white text-sm font-bold transition-all px-4 py-2 rounded-lg bg-white shadow-md hover:shadow-lg" style="border-color: #9333ea !important;">
+          class="border-2 sm:border-4 border-purple-500 text-purple-600 hover:bg-purple-500 hover:text-white text-xs sm:text-sm font-bold transition-all px-3 sm:px-4 py-2 rounded-lg bg-white shadow-md hover:shadow-lg" style="border-color: #9333ea !important;">
           Chat with Seller
         </button>
         <button 
           (click)="sendOffer()"
           [disabled]="(selectedItems.size === 0 && cashTopUp === 0) || valueComparison === 'Too Low!'"
-          class="bg-gray-900 text-white disabled:bg-gray-300 disabled:cursor-not-allowed px-8 py-3 rounded-xl font-bold transition-all transform hover:scale-105 shadow-lg"
+          class="bg-gray-900 text-white disabled:bg-gray-300 disabled:cursor-not-allowed px-4 sm:px-8 py-2 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-base font-bold transition-all transform hover:scale-105 shadow-lg"
         >
           Send Trade Offer
         </button>
