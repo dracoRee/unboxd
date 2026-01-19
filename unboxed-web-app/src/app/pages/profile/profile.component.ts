@@ -51,7 +51,6 @@ export class ProfileComponent implements OnInit {
         bio: profile.bio || '', 
         profilePicture: profile.profilePicture || '' 
       };
-      
       this.loadListings(id);
     });
   }
@@ -142,5 +141,11 @@ export class ProfileComponent implements OnInit {
         }
       });
     }
+  }
+
+  logout() {
+    this.authService.logout();
+    // Optionally, navigate to login or home page after logout
+    window.location.href = '/login';
   }
 }

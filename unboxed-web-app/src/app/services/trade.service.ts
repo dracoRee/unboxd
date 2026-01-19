@@ -116,10 +116,10 @@ export class TradeService {
    * Map Supabase item to TradeItem model
    */
   private mapToTradeItem(item: any): TradeItem {
-    console.table(item);
+    //console.table(item);
     // Supabase returns 'user' (lowercase) due to alias in query
     const userData = item.User || item.user;
-    console.log('User data:', JSON.stringify(userData, null, 2));
+    //console.log('User data:', JSON.stringify(userData, null, 2));
     // If item has a nested Collectible, it's likely a UserListing or UserCollectible
     // The getAvailableListings returns UserListing with nested Collectible
     // But getWishlist returns Collectible directly (mapped previously) or UserWishlist which has Collectible nested

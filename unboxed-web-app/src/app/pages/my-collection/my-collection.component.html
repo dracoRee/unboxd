@@ -1,17 +1,26 @@
 <div class="container mx-auto px-4 py-8">
 
-      <div class="flex justify-between items-center mb-8">
+      <div class="flex justify-between items-center mb-8 mycollection-header">
         <div>
           <h1 class="text-3xl font-bold mb-2">My Collection</h1>
           <p class="text-gray-500">Track your mastery and find missing pieces</p>
         </div>
-        <button type="button" (click)="openAddModal()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:bg-indigo-700 transition-all">
+        <!-- Desktop Scan Item Button -->
+        <button type="button" (click)="openAddModal()" class="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-sm hover:bg-indigo-700 transition-all hidden sm:flex">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
           </svg>
           Scan Item
         </button>
       </div>
+
+      <!-- Mobile Scan Item Button (modern style, before collection grid) -->
+      <button type="button" (click)="openAddModal()" class="mycollection-scan-btn flex sm:hidden mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+        Scan Item
+      </button>
 
       <!-- Empty State -->
       @if (collections.length === 0) {
