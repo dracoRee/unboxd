@@ -1,7 +1,7 @@
 import { Component, OnInit, effect, ViewChild, ElementRef } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TradeService } from '../../services/trade.service';
 import { AuthService } from '../../services/auth.service';
 import { UserService, UserListing } from '../../services/user.service';
@@ -31,8 +31,10 @@ export interface Trade {
   // User-Led Verification Fields
   verificationStatus: VerificationStatus;
   verificationChecklist: VerificationChecklist;
-  counterparty?: {
+  counterparty: {
+    id: number;
     username: string;
+    profilePicture: string | null;
     rating: number;
     completedTrades: number;
     memberSince: string;
@@ -44,7 +46,7 @@ export interface Trade {
 @Component({
   selector: 'app-trades',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './trades.component.html',
   styleUrl: './trades.component.css'
 })
@@ -52,6 +54,7 @@ export interface Trade {
 export class TradesComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   
+  atSymbol = "@";
   trades: Trade[] = [];
   myListings: UserListing[] = [];
   activeTab: 'outgoing' | 'incoming' | 'listings' = 'listings';
@@ -59,6 +62,8 @@ export class TradesComponent implements OnInit {
   activeChatTradeId: number | null = null;
   isScanning = false;
   isUploaded = false; 
+  private readonly verificationStorageKey = 'tradeVerificationOpenById';
+  private verificationOpenByTradeId = new Map<number, boolean>();
   
   checklistItems: Array<{ key: keyof VerificationChecklist, label: string, helper: string }> = [
     { 
@@ -95,6 +100,7 @@ export class TradesComponent implements OnInit {
     private collectionService: CollectionService,
     private router: Router
   ) {
+    this.loadVerificationState();
     effect(() => {
       this.userId = this.authService.backendUser()?.id;
       if (this.userId) {
@@ -105,6 +111,34 @@ export class TradesComponent implements OnInit {
   }
 
   ngOnInit(): void {}
+
+  private loadVerificationState() {
+    try {
+      const raw = localStorage.getItem(this.verificationStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Record<string, boolean>;
+      Object.entries(parsed).forEach(([id, isOpen]) => {
+        const tradeId = Number(id);
+        if (!Number.isNaN(tradeId)) {
+          this.verificationOpenByTradeId.set(tradeId, Boolean(isOpen));
+        }
+      });
+    } catch (error) {
+      console.warn('Failed to load verification state', error);
+    }
+  }
+
+  private saveVerificationState() {
+    const data: Record<string, boolean> = {};
+    this.verificationOpenByTradeId.forEach((isOpen, id) => {
+      data[id.toString()] = isOpen;
+    });
+    try {
+      localStorage.setItem(this.verificationStorageKey, JSON.stringify(data));
+    } catch (error) {
+      console.warn('Failed to persist verification state', error);
+    }
+  }
 
   loadTrades() {
     if (!this.userId) return;
@@ -121,6 +155,7 @@ export class TradesComponent implements OnInit {
   }
 
   enrichTradeData(trade: any): Trade {
+    const isOpen = this.verificationOpenByTradeId.get(trade.id) ?? false;
     return {
       ...trade,
       verificationStatus: trade.verificationStatus || 'not_started',
@@ -131,20 +166,27 @@ export class TradesComponent implements OnInit {
         proofRequested: false,
         authenticityVerified: false
       },
-      showVerification: false,
-      counterparty: {
-        username: trade.counterparty?.username || ('Collector_' + Math.floor(Math.random() * 1000)),
-        rating: trade.counterparty?.rating || (4 + Math.random()).toFixed(1),
-        completedTrades: trade.counterparty?.completedTrades || Math.floor(Math.random() * 50),
-        memberSince: trade.counterparty?.memberSince || '2023',
-        isPhoneVerified: trade.counterparty?.isPhoneVerified ?? true
+      showVerification: isOpen,
+      counterparty: trade.counterparty ? {
+        id: trade.counterparty.id,
+        username: trade.counterparty.username || trade.counterparty.name || `User_${trade.counterparty.id || 'Unknown'}`,
+        rating: trade.counterparty.rating || 0,
+        completedTrades: trade.counterparty.completedTrades || 0,
+        memberSince: trade.counterparty.memberSince || 'Unknown',
+        isPhoneVerified: trade.counterparty.isPhoneVerified || false
+      } : {
+        id: 0,
+        username: 'Unknown User',
+        rating: 0,
+        completedTrades: 0,
+        memberSince: 'Unknown',
+        isPhoneVerified: false
       }
     };
   }
 
   get filteredTrades() {
     if (!this.userId) return [];
-    console.log("active tab:", this.activeTab)
     return this.trades.filter(t => 
       this.activeTab === 'outgoing' ? t.proposerId === this.userId : t.receiverId === this.userId
     );
@@ -155,6 +197,12 @@ export class TradesComponent implements OnInit {
     this.tradeService.updateTradeStatus(tradeId, status).subscribe(() => {
       this.loadTrades();
     });
+  }
+
+  toggleVerification(trade: Trade) {
+    trade.showVerification = !trade.showVerification;
+    this.verificationOpenByTradeId.set(trade.id, Boolean(trade.showVerification));
+    this.saveVerificationState();
   }
 
   toggleCheck(trade: Trade, key: keyof VerificationChecklist) {

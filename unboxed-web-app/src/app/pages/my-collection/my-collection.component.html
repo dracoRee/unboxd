@@ -53,6 +53,11 @@
                   <div class="relative group cursor-pointer" [title]="item.name">
                     <img [src]="item.imageUrl || 'assets/placeholder.png'" 
                          class="w-full aspect-square object-cover rounded-lg border border-gray-50 hover:scale-105 transition-transform">
+                    @if (item.quantity && item.quantity > 1) {
+                      <span class="absolute top-1 left-1 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow">
+                        x{{ item.quantity }}
+                      </span>
+                    }
                     <button 
                       (click)="openEditModal(item, series.seriesId, $event)" 
                       class="absolute top-1 right-9 opacity-0 group-hover:opacity-100 bg-blue-500 hover:bg-blue-600 text-white rounded-full p-1.5 transition-all shadow-lg z-10"

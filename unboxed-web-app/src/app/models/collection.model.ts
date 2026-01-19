@@ -12,6 +12,7 @@ export interface CollectibleItem {
   rarity?: string;
   referenceValue?: number;
   imageUrl: string | null;
+  quantity?: number;
   seriesId?: number;
   isOwned: boolean;
   serialNumber?: string;

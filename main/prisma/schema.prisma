@@ -85,6 +85,7 @@ model UserCollectible {
   serialNumber   String?
   demoVideoUrl   String?
   receiptUrl     String?
+  quantity       Int              @default(1)
   condition      ListingCondition? @default(BRAND_NEW)
   referenceValue Float?
   series         Series           @relation(fields: [seriesId], references: [id])

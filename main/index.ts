@@ -424,12 +424,32 @@ app.get('/collection/:userId', async (req, res) => {
 
     const userProgress = seriesStats.map((series: any) => {
       const userItemsInSeries = collection.filter((uc: any) => uc.seriesId === series.id);
+      const groupedItems = new Map<string, any>();
+
+      userItemsInSeries.forEach((uc: any) => {
+        const nameKey = typeof uc.name === 'string' && uc.name.trim()
+          ? uc.name.trim().toLowerCase()
+          : `__id:${uc.id}`;
+        const key = `${uc.seriesId}|${nameKey}`;
+
+        if (!groupedItems.has(key)) {
+          groupedItems.set(key, {
+            ...uc,
+            quantity: uc.quantity || 1
+          });
+        } else {
+          const existing = groupedItems.get(key);
+          existing.quantity += uc.quantity || 1;
+        }
+      });
+
+      const groupedList = Array.from(groupedItems.values());
       return {
         seriesId: series.id,
         seriesName: series.name,
         totalItems: series.totalItems || series.items.length, // Fallback if totalItems is null
-        ownedItems: userItemsInSeries.length,
-        items: userItemsInSeries.map((uc: any) => ({
+        ownedItems: groupedList.length,
+        items: groupedList.map((uc: any) => ({
           id: uc.id,
           name: uc.name || 'Unnamed Item',
           imageUrl: uc.imageUrl,
@@ -438,6 +458,7 @@ app.get('/collection/:userId', async (req, res) => {
           referenceValue: uc.referenceValue,
           demoVideoUrl: uc.demoVideoUrl,
           receiptUrl: uc.receiptUrl,
+          quantity: uc.quantity || 1,
           isOwned: true
         }))
       };
@@ -459,6 +480,31 @@ app.post('/collection/add', upload.fields([
     const { userId, seriesId, name, condition, referenceValue, serialNumber } = req.body;
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
     const timestamp = Date.now();
+
+    const parsedUserId = parseInt(userId);
+    const parsedSeriesId = parseInt(seriesId);
+    const normalizedName = typeof name === 'string' ? name.trim() : '';
+
+    if (normalizedName) {
+      const existingItem = await prisma.userCollectible.findFirst({
+        where: {
+          userId: parsedUserId,
+          seriesId: parsedSeriesId,
+          name: {
+            equals: normalizedName,
+            mode: 'insensitive'
+          }
+        }
+      });
+
+      if (existingItem) {
+        const updatedItem = await prisma.userCollectible.update({
+          where: { id: existingItem.id },
+          data: { quantity: existingItem.quantity + 1 }
+        });
+        return res.status(200).json(updatedItem);
+      }
+    }
 
     // 1. Upload main image
     let imageUrl = req.body.imageUrl; // Could come from "Scan" feature (string URL)
@@ -499,9 +545,9 @@ app.post('/collection/add', upload.fields([
 
     const userCollectible = await prisma.userCollectible.create({
       data: {
-        userId: parseInt(userId),
-        seriesId: parseInt(seriesId),
-        name,
+        userId: parsedUserId,
+        seriesId: parsedSeriesId,
+        name: normalizedName || name,
         imageUrl: imageUrl || '', // Should enforce requirement in frontend
         condition: condition || 'BRAND_NEW',
         referenceValue: referenceValue ? parseFloat(referenceValue) : 0,
@@ -588,6 +634,22 @@ app.patch('/collection/:id', upload.fields([
 app.delete('/collection/:id', async (req, res) => {
   const { id } = req.params;
   try {
+    const existingItem = await prisma.userCollectible.findUnique({
+      where: { id: parseInt(id) }
+    });
+
+    if (!existingItem) {
+      return res.status(404).json({ error: 'Collectible not found' });
+    }
+
+    if (existingItem.quantity > 1) {
+      const updatedItem = await prisma.userCollectible.update({
+        where: { id: existingItem.id },
+        data: { quantity: existingItem.quantity - 1 }
+      });
+      return res.json({ message: 'Collectible quantity decremented', item: updatedItem });
+    }
+
     await prisma.userCollectible.delete({
       where: { id: parseInt(id) }
     });
