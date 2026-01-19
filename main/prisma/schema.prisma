@@ -37,7 +37,7 @@ model PublicUser {
   bio            String?
   profilePicture String?
   isVerified     Boolean       @default(false)
-  username       String?       @unique
+  username       String        @unique
   user           User          @relation(fields: [id], references: [id])
   listings       UserListing[]
 }

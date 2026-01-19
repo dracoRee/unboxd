@@ -13,6 +13,7 @@ import { AuthService } from '../../services/auth.service';
 })
 export class RegisterComponent {
   name = '';
+  username = '';
   email = '';
   password = '';
   confirmPassword = '';
@@ -71,7 +72,8 @@ export class RegisterComponent {
     this.authService.register({ 
       email: this.email, 
       password: this.password,
-      name: this.name 
+      name: this.name,
+      username: this.username 
     }).subscribe({
       next: () => {
         this.router.navigate(['/login'], { queryParams: { registered: true } });

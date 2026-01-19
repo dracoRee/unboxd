@@ -137,11 +137,11 @@ const transporter = nodemailer.createTransport({
 
 // Register
 app.post('/auth/register', async (req, res) => {
-  const { email, password, name } = req.body;
+  const { email, password, name, username } = req.body;
   
   // Add validation
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password are required' });
+  if (!email || !password || !username) {
+    return res.status(400).json({ error: 'Email, password, and username are required' });
   }
 
   try {
@@ -220,7 +220,8 @@ app.post('/auth/register', async (req, res) => {
       const newUser = await tx.user.create({
         data: {
           email,
-          password: hashedPassword, // For backend compatibility
+          password: hashedPassword, 
+          username
         },
       });
 
@@ -228,6 +229,7 @@ app.post('/auth/register', async (req, res) => {
         data: {
           id: newUser.id,
           name: name || 'User',
+          username,
           bio: null,
           profilePicture: null
         }
@@ -240,7 +242,14 @@ app.post('/auth/register', async (req, res) => {
   } catch (error: any) {
     console.error('Registration Error:', error); // Add detailed logging
     if (error.code === 'P2002') {
-      return res.status(400).json({ error: 'Email already exists' });
+      const target = error.meta?.target || [];
+      if (target.includes('email')) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
+      if (target.includes('username')) {
+        return res.status(400).json({ error: 'Username already taken' });
+      }
+      return res.status(400).json({ error: 'Email or username already exists' });
     }
     res.status(500).json({ 
       error: 'Internal server error',
