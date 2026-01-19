@@ -15,11 +15,27 @@ import { CommonModule } from '@angular/common';
 export class NavbarComponent {
   searchQuery: string = '';
   showProfileMenu = false;
+  isMobile: boolean = false;
 
   constructor(
     private tradeService: TradeService,
     public authService: AuthService
-  ) {}
+  ) {
+    this.updateIsMobile();
+  }
+
+  ngOnInit() {
+    window.addEventListener('resize', this.updateIsMobile);
+    this.updateIsMobile();
+  }
+
+  ngOnDestroy() {
+    window.removeEventListener('resize', this.updateIsMobile);
+  }
+
+  updateIsMobile = () => {
+    this.isMobile = window.innerWidth < 768;
+  };
 
   onSearchChange() {
     this.tradeService.updateFilters({ search: this.searchQuery });

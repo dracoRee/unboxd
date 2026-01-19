@@ -64,7 +64,7 @@ export class AuthService {
    * Registers a new user with email, password, and name.
    * @param credentials - User's email, password, and name.
    */
-  register(credentials: { email: string; password: string; name: string }): Observable<any> {
+  register(credentials: { email: string; password: string; name: string; username: string }): Observable<any> {
     return this.http.post(`${this.apiUrl}/auth/register`, credentials);
   }
 
