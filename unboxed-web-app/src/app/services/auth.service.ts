@@ -85,7 +85,7 @@ export class AuthService {
     return from(this.supabaseService.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin + '/browse'
+        redirectTo: window.location.origin + '/auth/callback'
       }
     })).pipe(
       tap(({ data, error }) => {
@@ -96,6 +96,23 @@ export class AuthService {
         console.log('Google OAuth Data:', data);
       })
     );
+  }
+
+  async handleOAuthCallback(redirectTo: string = '/browse'): Promise<void> {
+    const { data, error } = await this.supabaseService.auth.exchangeCodeForSession(window.location.href);
+
+    if (error) {
+      throw error;
+    }
+
+    if (data?.session?.user) {
+      this.currentUser.set(data.session.user);
+      this.syncWithBackend(data.session.user);
+    }
+
+    if (redirectTo) {
+      await this.router.navigate([redirectTo]);
+    }
   }
 
   logout() {

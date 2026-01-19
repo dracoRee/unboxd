@@ -13,6 +13,7 @@ import { ProfileComponent } from './pages/profile/profile.component';
 import { SeriesComponent } from './pages/series/series.component';
 import { authGuard } from './guards/auth.guard';
 import { HomeComponent } from '../../config/Home';
+import { AuthCallbackComponent } from './pages/auth-callback/auth-callback.component';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'browse', pathMatch: 'full' },
@@ -21,6 +22,7 @@ export const routes: Routes = [
   { path: 'register', component: RegisterComponent },
   { path: 'forgot-password', component: ForgotPasswordComponent },
   { path: 'reset-password', component: ResetPasswordComponent },
+  { path: 'auth/callback', component: AuthCallbackComponent },
   { path: 'browse', component: BrowseComponent, canActivate: [authGuard] },
   { path: 'trades', component: TradesComponent, canActivate: [authGuard] },
   { path: 'trades/upload-item', component: UploadItemComponent, canActivate: [authGuard] },

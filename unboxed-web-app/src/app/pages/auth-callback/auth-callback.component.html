@@ -1,0 +1,8 @@
+<div class="callback-container">
+  <div class="card">
+    <h1>Signing you in…</h1>
+    <p *ngIf="loading()">Please wait while we complete Google sign-in.</p>
+    <p class="error" *ngIf="error()">{{ error() }}</p>
+    <a *ngIf="error()" routerLink="/login">Back to login</a>
+  </div>
+</div>

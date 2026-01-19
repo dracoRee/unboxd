@@ -37,6 +37,14 @@ export class UploadItemComponent implements OnInit {
   showModelDropdown: boolean = false;
   filteredSeries: any[] = [];
   filteredModels: any[] = [];
+  isModelsLoading: boolean = false;
+
+  // Custom model support
+  useCustomModelName: boolean = false;
+
+  // Validation UI state
+  formValidationMessage: string = '';
+  formValidationActions: string[] = [];
   
   condition: string = 'BRAND_NEW';
   conditionOptions = [
@@ -148,10 +156,15 @@ export class UploadItemComponent implements OnInit {
   }
 
   loadModelsBySeries(seriesId: number) {
+    this.isModelsLoading = true;
     this.collectionService.getCollectiblesBySeries(seriesId).subscribe({
       next: (models) => {
         this.availableModels = models;
         this.filteredModels = models;
+        this.isModelsLoading = false;
+        if (this.availableModels.length > 0) {
+          this.useCustomModelName = false;
+        }
         
         // Auto-select if there's only one model
         if (models.length === 1) {
@@ -171,7 +184,10 @@ export class UploadItemComponent implements OnInit {
           this.onModelChange();
         }
       },
-      error: (err) => console.error('Failed to load models', err)
+      error: (err) => {
+        this.isModelsLoading = false;
+        console.error('Failed to load models', err);
+      }
     });
   }
 
@@ -282,9 +298,152 @@ export class UploadItemComponent implements OnInit {
     this.receiptPreview = null;
   }
 
+  private setValidationMessage(message: string, actions: string[]) {
+    this.formValidationMessage = message;
+    this.formValidationActions = actions;
+  }
+
+  private scrollToSection(sectionId: string): void {
+    const target = document.getElementById(sectionId);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  private validateAndRedirect(): boolean {
+    this.formValidationMessage = '';
+    this.formValidationActions = [];
+
+    if (!this.isEditing && !this.uploadedImageUrl) {
+      this.setValidationMessage('Listing photo is missing.', [
+        'Go back to the previous step and upload a clear item photo.'
+      ]);
+      this.scrollToSection('uploadedImageSection');
+      return false;
+    }
+
+    if (!this.title.trim()) {
+      this.setValidationMessage('Listing title is required.', [
+        'Enter a short, descriptive title (max 50 characters).'
+      ]);
+      this.scrollToSection('titleSection');
+      return false;
+    }
+
+    if (!this.isCharLengthValid(this.title, 50)) {
+      this.setValidationMessage('Listing title is too long.', [
+        'Reduce the title to 50 characters or fewer.'
+      ]);
+      this.scrollToSection('titleSection');
+      return false;
+    }
+
+    if (!this.isCharLengthValid(this.description, 1000)) {
+      this.setValidationMessage('Description is too long.', [
+        'Keep the description within 1000 characters.'
+      ]);
+      this.scrollToSection('descriptionSection');
+      return false;
+    }
+
+    if (!this.seriesName.trim()) {
+      this.setValidationMessage('Collectible series is required.', [
+        'Select a series from the list or add a custom series.'
+      ]);
+      this.scrollToSection('seriesSection');
+      return false;
+    }
+
+    const noModelsAvailable = !this.isModelsLoading && !!this.selectedSeries && this.selectedSeries !== 'custom' && this.availableModels.length === 0;
+    const hasCustomModelName = this.useCustomModelName && this.modelSearchTerm.trim().length > 0;
+
+    if (this.selectedSeries === 'custom' && !this.modelSearchTerm.trim()) {
+      this.setValidationMessage('Custom model name is required.', [
+        'Enter the model name for this custom series.'
+      ]);
+      this.scrollToSection('modelSection');
+      return false;
+    }
+
+    if (!noModelsAvailable && !this.selectedModelId && !hasCustomModelName) {
+      this.setValidationMessage('Model selection is required.', [
+        'Pick a model from the dropdown or enter a custom model name.'
+      ]);
+      this.scrollToSection('modelSection');
+      return false;
+    }
+
+    if (!this.serialNumber.trim()) {
+      this.setValidationMessage('Serial number is required.', [
+        'Enter the serial number from the item or packaging.'
+      ]);
+      this.scrollToSection('serialSection');
+      return false;
+    }
+
+    if (this.referenceValue === null) {
+      this.setValidationMessage('Reference value is required.', [
+        'Enter a reference value based on receipt or market price.'
+      ]);
+      this.scrollToSection('valueSection');
+      return false;
+    }
+
+    const hasDealMethod = this.dealMethods.meetup || this.dealMethods.delivery;
+    if (!hasDealMethod) {
+      this.setValidationMessage('Select at least one deal method.', [
+        'Choose Meet-up, Delivery, or both.'
+      ]);
+      this.scrollToSection('dealMethodsSection');
+      return false;
+    }
+
+    if (this.isEditing) {
+      const videoValid = this.demoVideoFile !== null || !!this.existingListing?.demoVideoUrl;
+      if (!videoValid) {
+        this.setValidationMessage('Demo video is required.', [
+          'Upload a short demo video showing the item.'
+        ]);
+        this.scrollToSection('demoVideoSection');
+        return false;
+      }
+
+      const receiptValid = this.receiptFile !== null || !!this.existingListing?.receiptUrl;
+      if (!receiptValid) {
+        this.setValidationMessage('Receipt proof is required.', [
+          'Upload a receipt or proof of payment.'
+        ]);
+        this.scrollToSection('receiptSection');
+        return false;
+      }
+    } else {
+      if (this.demoVideoFile === null) {
+        this.setValidationMessage('Demo video is required.', [
+          'Upload a short demo video showing the item.'
+        ]);
+        this.scrollToSection('demoVideoSection');
+        return false;
+      }
+
+      if (this.receiptFile === null) {
+        this.setValidationMessage('Receipt proof is required.', [
+          'Upload a receipt or proof of payment.'
+        ]);
+        this.scrollToSection('receiptSection');
+        return false;
+      }
+    }
+
+    return true;
+  }
+
   isFormValid(): boolean {
     const hasDealMethod = this.dealMethods.meetup || this.dealMethods.delivery;
-    const modelValid = this.selectedSeries === 'custom' || !!this.selectedModelId;
+    const noModelsAvailable = !this.isModelsLoading && !!this.selectedSeries && this.selectedSeries !== 'custom' && this.availableModels.length === 0;
+    const customModelValid = this.useCustomModelName && this.modelSearchTerm.trim().length > 0;
+    const modelValid = this.selectedSeries === 'custom'
+      ? this.modelSearchTerm.trim().length > 0
+      : !!this.selectedModelId || customModelValid || noModelsAvailable;
     const basicValid = this.title.trim().length > 0 &&
            this.seriesName.trim().length > 0 &&
            this.serialNumber.trim().length > 0 && 
@@ -304,8 +463,7 @@ export class UploadItemComponent implements OnInit {
   }
 
   async submitListing(): Promise<void> {
-    if (!this.isFormValid()) {
-      alert('Please fill in all required fields.');
+    if (!this.validateAndRedirect()) {
       return;
     }
 
@@ -329,6 +487,8 @@ export class UploadItemComponent implements OnInit {
       formData.append('seriesName', this.seriesName);
       if (this.selectedModelId) {
         formData.append('collectibleId', this.selectedModelId.toString());
+      } else if (this.useCustomModelName && this.modelSearchTerm.trim().length > 0) {
+        formData.append('customModelName', this.modelSearchTerm.trim());
       }
       formData.append('description', this.description);
       formData.append('condition', this.condition);
@@ -422,6 +582,19 @@ export class UploadItemComponent implements OnInit {
     this.filteredSeries = this.availableSeries.filter(series => 
       series.name.toLowerCase().includes(term)
     );
+
+    if (!term) {
+      this.selectedSeries = '';
+      this.seriesName = '';
+      this.availableModels = [];
+      this.selectedModelId = null;
+      return;
+    }
+
+    const exactMatch = this.availableSeries.find(series => series.name.toLowerCase() === term);
+    if (exactMatch) {
+      this.selectSeriesFromDropdown(exactMatch);
+    }
   }
 
   openSeriesDropdown(): void {
@@ -435,6 +608,9 @@ export class UploadItemComponent implements OnInit {
     this.seriesSearchTerm = series.name;
     this.customSeriesName = '';
     this.showSeriesDropdown = false;
+    this.useCustomModelName = false;
+    this.modelSearchTerm = '';
+    this.selectedModelId = null;
     
     if (series.id) {
       this.loadModelsBySeries(series.id);
@@ -447,6 +623,7 @@ export class UploadItemComponent implements OnInit {
     this.seriesSearchTerm = '';
     this.availableModels = [];
     this.selectedModelId = null;
+    this.useCustomModelName = true;
   }
 
   // Model dropdown methods
@@ -455,6 +632,31 @@ export class UploadItemComponent implements OnInit {
     this.filteredModels = this.availableModels.filter(model => 
       model.name.toLowerCase().includes(term)
     );
+
+    if (!term) {
+      this.selectedModelId = null;
+      this.useCustomModelName = this.selectedSeries === 'custom';
+      return;
+    }
+
+    const exactMatch = this.availableModels.find(model => model.name.toLowerCase() === term);
+    if (exactMatch) {
+      this.selectModelFromDropdown(exactMatch);
+      return;
+    }
+
+    this.selectedModelId = null;
+    this.useCustomModelName = true;
+    if (!this.title.trim()) {
+      this.title = this.modelSearchTerm;
+    }
+  }
+
+  onCustomModelToggle(): void {
+    if (this.useCustomModelName) {
+      this.selectedModelId = null;
+      this.modelSearchTerm = '';
+    }
   }
 
   openModelDropdown(): void {
@@ -469,6 +671,7 @@ export class UploadItemComponent implements OnInit {
     this.selectedModelId = model.id;
     this.modelSearchTerm = model.name;
     this.showModelDropdown = false;
+    this.useCustomModelName = false;
     this.onModelChange();
   }
 

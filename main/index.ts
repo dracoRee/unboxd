@@ -805,6 +805,16 @@ app.post('/upload', upload.single('image'), async (req, res) => {
 app.post('/trades', async (req, res) => {
   const { proposerId, receiverId, targetItemId, offeredItemIds, buyerPaysCash, cashTopUp } = req.body;
   try {
+    // Validate required fields
+    if (!proposerId || !receiverId || !targetItemId) {
+      return res.status(400).json({ error: 'Missing required fields: proposerId, receiverId, targetItemId' });
+    }
+
+    // Validate targetItemId
+    const targetId = parseInt(targetItemId);
+    if (isNaN(targetId) || targetId <= 0) {
+      return res.status(400).json({ error: 'targetItemId must be a positive integer' });
+    }
 
     // Validate offered item IDs - allow empty array if cash is provided
     if (!Array.isArray(offeredItemIds)) {
@@ -818,22 +828,24 @@ app.post('/trades', async (req, res) => {
     }
 
     const offeredIds = offeredItemIds
-      .map((id: any) => Number(id))
-      .filter((id: number) => Number.isInteger(id));
+      .map((id: any) => {
+        const numId = Number(id);
+        return Number.isInteger(numId) && numId > 0 ? numId : null;
+      })
+      .filter((id: number | null) => id !== null) as number[];
 
-    if (offeredIds.length !== offeredItemIds.length || offeredIds.some((id: number) => Number.isNaN(id))) {
-      return res.status(400).json({ error: 'offeredItemIds must contain only valid integers' });
+    if (offeredIds.length !== offeredItemIds.length) {
+      return res.status(400).json({ error: 'offeredItemIds must contain only valid positive integers' });
     }
 
-    if (offeredIds.some((id: number) => id <= 0)) {
-      return res.status(400).json({ error: 'offeredItemIds must contain only positive integers' });
+    // Check if target collectible exists
+    const targetCollectible = await prisma.collectible.findUnique({
+      where: { id: targetId },
+      select: { id: true }
+    });
+    if (!targetCollectible) {
+      return res.status(400).json({ error: 'Target collectible does not exist' });
     }
-
-    const proposer = await prisma.user.findUnique({ where: { id: parseInt(proposerId) } });
-    const receiver = await prisma.user.findUnique({ where: { id: parseInt(receiverId) } });
-
-    if (!proposer) return res.status(400).json({ error: 'Proposer does not exist' });
-    if (!receiver) return res.status(400).json({ error: 'Receiver does not exist' });
 
     // Ensure all offered collectible IDs exist (only if items are provided)
     if (offeredIds.length > 0) {
@@ -849,12 +861,12 @@ app.post('/trades', async (req, res) => {
       }
     }
 
-    // console.log('Offered collectible IDs:', offeredIds);
+    console.log('Creating trade with offered collectible IDs:', offeredIds);
     const trade = await prisma.trade.create({
       data: {
         proposerId: parseInt(proposerId),
         receiverId: parseInt(receiverId),
-        targetItemId: parseInt(targetItemId),
+        targetItemId: targetId,
         status: 'PENDING',
         cashAmount: cashTopUp ? parseFloat(cashTopUp) : 0,
         buyerPaysCash: buyerPaysCash !== undefined ? buyerPaysCash : true,
