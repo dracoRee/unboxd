@@ -18,6 +18,134 @@
   width: 100%;
 }
 
+.trade-item-button {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.trade-item-button.text-left {
+  align-items: flex-start;
+}
+
+.trade-item-button:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 3px;
+  border-radius: 0.75rem;
+}
+
+.trade-item-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 50;
+}
+
+.trade-item-modal {
+  background: #fff;
+  border-radius: 1.5rem;
+  max-width: 560px;
+  width: 100%;
+  max-height: 85vh;
+  box-shadow: 0 24px 48px -12px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.trade-item-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.5rem 1.5rem 0.5rem;
+}
+
+.trade-item-modal-label {
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.15em;
+  color: #6366f1;
+  font-weight: 700;
+}
+
+.trade-item-modal-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 0.35rem;
+}
+
+.trade-item-modal-close {
+  border: none;
+  background: #f1f5f9;
+  color: #334155;
+  border-radius: 999px;
+  padding: 0.4rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.trade-item-modal-close:hover {
+  background: #e2e8f0;
+}
+
+.trade-item-modal-body {
+  display: flex; /* Or display: grid; */
+  gap: 1rem; /* Adds space between image and details */
+  align-items: flex-start; /* Aligns items to the top */
+}
+
+.trade-item-modal-image {
+  display: block;
+  width: 40%; /* Or a fixed width like 200px */
+  max-height: 320px;
+  height: auto;
+  border-radius: 1rem;
+  object-fit: contain;
+  background: #f8fafc;
+  padding: 1rem;
+}
+
+.trade-item-modal-details {
+  flex-grow: 1; /* Allows details to take remaining space */
+  overflow-y: auto; /* Enables scrolling for long descriptions */
+  max-height: 320px; /* Match image max height for alignment */
+  padding: 1rem;
+}
+
+.trade-item-detail {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.trade-item-detail-label {
+  font-weight: bold;
+  margin-right: 1rem;
+}
+
+
+.trade-item-detail-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+@media (min-width: 640px) {
+  .trade-item-modal-body {
+    grid-template-columns: 1.1fr 1fr;
+    align-items: start;
+  }
+}
+
 /* --- MOBILE-SPECIFIC TRADE PAGE TWEAKS --- */
 @media (max-width: 600px) {
   .tradehub-header {

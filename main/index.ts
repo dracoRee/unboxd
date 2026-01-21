@@ -228,8 +228,8 @@ app.post('/auth/register', async (req, res) => {
       await tx.publicUser.create({
         data: {
           id: newUser.id,
+          username: username,
           name: name || 'User',
-          username,
           bio: null,
           profilePicture: null
         }
@@ -1398,13 +1398,14 @@ app.get('/users/profile/:id', async (req, res) => {
           select: {
             id: true,
             email: true,
-            _count: {
-              select: {
-                User_A: true,
-                User_B: true,
-                collection: true
-              }
-            }
+            _count: true,
+            // {
+            //   select: {
+            //     User_A: true,
+            //     User_B: true,
+            //     collection: true
+            //   }
+            // }
           }
         },
         _count: {
@@ -1420,17 +1421,17 @@ app.get('/users/profile/:id', async (req, res) => {
     // Check if following status
     let isFollowing = false;
     if (currentUserId) {
-        // Query the relation to see if connection exists
-        const following = await prisma.user.findUnique({
-            where: { id: currentUserId },
-            select: { 
-                User_A: {
-                    where: { id: userId },
-                    select: { id: true }
-                }
-            }
-        });
-        isFollowing = following?.User_A?.length > 0;
+      // Query the relation to see if connection exists
+      const following = await prisma.user.findUnique({
+        where: { id: currentUserId },
+        select: { 
+          following: {
+            where: { id: userId },
+            select: { id: true }
+          }
+        }
+      });
+      isFollowing = following?.following?.length > 0;
     }
     
     // Construct response matching the expected format
@@ -1551,7 +1552,7 @@ app.get('/users/:id/followers', async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: parseInt(id) },
       select: {
-        User_B: {
+        followedBy: {
           select: { 
             id: true, 
             publicUser: {
@@ -1562,7 +1563,7 @@ app.get('/users/:id/followers', async (req, res) => {
       }
     });
 
-    const followers = user?.User_B.map((f: any) => ({
+    const followers = user?.followedBy.map((f: any) => ({
       id: f.id,
       name: f.publicUser?.name || 'User',
       profilePicture: f.publicUser?.profilePicture || null
@@ -1581,7 +1582,7 @@ app.get('/users/:id/following', async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: parseInt(id) },
       select: {
-        User_A: {
+        following: {
           select: { 
             id: true, 
             publicUser: {
@@ -1592,7 +1593,7 @@ app.get('/users/:id/following', async (req, res) => {
       }
     });
 
-    const following = user?.User_A.map((f: any) => ({
+    const following = user?.following.map((f: any) => ({
       id: f.id,
       name: f.publicUser?.name || 'User',
       profilePicture: f.publicUser?.profilePicture || null

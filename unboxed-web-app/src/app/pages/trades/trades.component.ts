@@ -47,6 +47,16 @@ export interface Trade {
   showVerification?: boolean;
 }
 
+interface TradeItemView {
+  name: string;
+  imageUrl: string;
+  label: string;
+  seriesName?: string | null;
+  condition?: string | null;
+  referenceValue?: number | null;
+  description?: string | null;
+}
+
 @Component({
   selector: 'app-trades',
   standalone: true,
@@ -66,6 +76,8 @@ export class TradesComponent implements OnInit {
   activeChatTradeId: number | null = null;
   isScanning = false;
   isUploaded = false; 
+  isItemModalOpen = false;
+  selectedItem: TradeItemView | null = null;
   private readonly verificationStorageKey = 'tradeVerificationOpenById';
   private verificationOpenByTradeId = new Map<number, boolean>();
   
@@ -161,6 +173,9 @@ export class TradesComponent implements OnInit {
 
   enrichTradeData(trade: any): Trade {
     const isOpen = this.verificationOpenByTradeId.get(trade.id) ?? false;
+    const rawUsername = trade?.counterparty?.username ?? trade?.counterparty?.name ?? '';
+    const normalizedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+    const resolvedUsername = normalizedUsername || `User_${trade?.counterparty?.id ?? 'Unknown'}`;
     return {
       ...trade,
       verificationStatus: trade.verificationStatus || 'not_started',
@@ -174,7 +189,7 @@ export class TradesComponent implements OnInit {
       showVerification: isOpen,
       counterparty: trade.counterparty ? {
         id: trade.counterparty.id,
-        username: trade.counterparty.username || trade.counterparty.name || `User_${trade.counterparty.id || 'Unknown'}`,
+        username: resolvedUsername,
         rating: trade.counterparty.rating || 0,
         completedTrades: trade.counterparty.completedTrades || 0,
         memberSince: trade.counterparty.memberSince || 'Unknown',
@@ -202,6 +217,16 @@ export class TradesComponent implements OnInit {
     this.tradeService.updateTradeStatus(tradeId, status).subscribe(() => {
       this.loadTrades();
     });
+  }
+
+  openItemModal(item: TradeItemView) {
+    this.selectedItem = item;
+    this.isItemModalOpen = true;
+  }
+
+  closeItemModal() {
+    this.isItemModalOpen = false;
+    this.selectedItem = null;
   }
 
   toggleVerification(trade: Trade) {

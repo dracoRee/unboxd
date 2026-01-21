@@ -5,6 +5,14 @@ import { CollectionService } from '../../services/collection.service';
 import { AuthService } from '../../services/auth.service';
 import { SeriesProgress } from '../../models/collection.model';
 
+export const CONDITION_OPTIONS = [
+  { value: 'BRAND_NEW', label: 'Brand New - Never used. May come with original packaging or tag.' },
+  { value: 'LIKE_NEW', label: 'Like New - Used once or twice. As good as new.' },
+  { value: 'LIGHTLY_USED', label: 'Lightly Used - Used with care. Flaws, if any, are barely noticeable.' },
+  { value: 'WELL_USED', label: 'Well Used - Has minor flaws or defects.' },
+  { value: 'HEAVILY_USED', label: 'Heavily Used - Has obvious signs of use or defects.' }
+];
+
 @Component({
   selector: 'app-my-collection',
   standalone: true,
@@ -15,7 +23,8 @@ import { SeriesProgress } from '../../models/collection.model';
 export class MyCollectionComponent implements OnInit {
   collections: SeriesProgress[] = [];
   userId?: number;
-  
+  conditionOptions = CONDITION_OPTIONS;
+
   // Add Modal State
   showAddModal = false;
   seriesList: any[] = [];
@@ -24,7 +33,7 @@ export class MyCollectionComponent implements OnInit {
   availableModels: any[] = [];
   newItemName = '';
   serialNumber = '';
-  condition = 'Mint';
+  condition = 'BRAND_NEW';
   referenceValue: number | null = null;
   
   // Searchable dropdown state
@@ -48,14 +57,15 @@ export class MyCollectionComponent implements OnInit {
   isUploading = false;
   formMode: 'add' | 'edit' = 'add';
   editingCollectibleId: number | null = null;
+  
 
-  conditionOptions = [
-    'Brand New - Never used. May come with original packaging or tag.',
-    'Like New - Used once or twice. As good as new.',
-    'Lightly Used - Used with care. Flaws, if any, are barely noticeable.',
-    'Well Used - Has minor flaws or defects.',
-    'Heavily Used - Has obvious signs of use or defects.'
-  ];
+  // conditionOptions = [
+  //   'Brand New - Never used. May come with original packaging or tag.',
+  //   'Like New - Used once or twice. As good as new.',
+  //   'Lightly Used - Used with care. Flaws, if any, are barely noticeable.',
+  //   'Well Used - Has minor flaws or defects.',
+  //   'Heavily Used - Has obvious signs of use or defects.'
+  // ];
 
   // Series Detail Modal State
   showSeriesDetail = false;
@@ -152,7 +162,7 @@ export class MyCollectionComponent implements OnInit {
     // If item.condition isn't in our new set, default to first option
     this.condition = item.condition && this.conditionOptions.includes(item.condition) 
       ? item.condition 
-      : this.conditionOptions[0];
+      : this.condition = item.condition;
       
     this.referenceValue = item.referenceValue || null;
   }
@@ -173,7 +183,7 @@ export class MyCollectionComponent implements OnInit {
     this.selectedSeriesId = null;
     this.selectedModelId = null;
     this.serialNumber = '';
-    this.condition = this.conditionOptions[0];
+    this.condition = "BRAND_NEW";
     this.referenceValue = null;
     this.editingCollectibleId = null;
     this.formMode = 'add';
@@ -214,11 +224,13 @@ export class MyCollectionComponent implements OnInit {
     if ((!this.selectedFile && this.formMode === 'add') || !this.selectedSeriesId || !this.userId) return;
     
     this.isUploading = true;
+
+    const resolvedName = (this.newItemName || this.modelSearchTerm || '').trim();
     
     const formData = new FormData();
     formData.append('userId', this.userId.toString());
     formData.append('seriesId', this.selectedSeriesId.toString());
-    if (this.newItemName) formData.append('name', this.newItemName);
+    if (resolvedName) formData.append('name', resolvedName);
     if (this.serialNumber) formData.append('serialNumber', this.serialNumber);
     if (this.condition) formData.append('condition', this.condition);
     if (this.referenceValue) formData.append('referenceValue', this.referenceValue.toString());
@@ -265,7 +277,7 @@ export class MyCollectionComponent implements OnInit {
   }
 
   handleError(err: any) {
-    console.error(err);
+    console.error("haha", err);
     this.isUploading = false;
     alert('Failed to save item.');
   }
