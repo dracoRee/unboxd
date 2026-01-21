@@ -35,7 +35,16 @@ export class ProfileComponent implements OnInit {
     this.route.params.subscribe(params => {
       const id = params['id'];
       if (id) {
-        this.loadProfile(parseInt(id));
+        // Wait for auth to be ready before loading profile
+        const backendUser = this.authService.backendUser();
+        if (backendUser?.id) {
+          this.loadProfile(parseInt(id));
+        } else {
+          // If auth not ready, wait a bit and retry
+          setTimeout(() => {
+            this.loadProfile(parseInt(id));
+          }, 500);
+        }
       }
     });
   }
@@ -46,7 +55,10 @@ export class ProfileComponent implements OnInit {
     
     this.userService.getProfile(id, currentUserId).subscribe(profile => {
       this.profile = profile;
-      this.isOwnProfile = currentUserId === profile.id;
+      // Ensure we have current user ID for comparison
+      const freshBackendUser = this.authService.backendUser();
+      const freshCurrentUserId = freshBackendUser?.id;
+      this.isOwnProfile = freshCurrentUserId !== undefined && freshCurrentUserId === profile.id;
       this.editData = { 
         bio: profile.bio || '', 
         profilePicture: profile.profilePicture || '' 
@@ -124,7 +136,12 @@ export class ProfileComponent implements OnInit {
   toggleFollow() {
     if (!this.profile) return;
     const currentUserId = this.authService.backendUser()?.id;
-    if (!currentUserId) return;
+    
+    // Prevent following yourself
+    if (!currentUserId || currentUserId === this.profile.id) {
+      console.warn('Cannot follow yourself');
+      return;
+    }
     
     if (this.profile.isFollowing) {
       this.userService.unfollowUser(currentUserId, this.profile.id).subscribe(() => {
