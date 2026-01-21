@@ -1,0 +1,97 @@
+<div class="bg-gray-200 rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer hover:shadow-md transition-all duration-300 hover:scale-105"
+  style="will-change: transform;"
+  (click)="openAdLink()">
+  
+  <!-- Image Collage Section -->
+  <div class="relative bg-white overflow-hidden group" [style.height.px]="collageHeightPx">
+    <!-- Main Image Display -->
+    <div class="relative w-full h-full overflow-hidden">
+      <!-- Sponsored Badge -->
+      <div class="absolute top-2 left-2 z-20 px-3 py-1 bg-purple-600 text-white text-[10px] font-bold uppercase rounded-full shadow-lg">
+        Sponsored
+      </div>
+
+      <!-- External Link Indicator -->
+      <div class="absolute top-2 right-2 z-20 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg hover:bg-gray-100">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </div>
+
+      <!-- Image Slideshow - 2 images per slide -->
+      <div class="relative w-full h-full flex pt-6">
+        @for (slide of imageSlides; track $index) {
+          <div 
+            [class.opacity-100]="$index === currentSlideIndex"
+            [class.opacity-0]="$index !== currentSlideIndex"
+            class="absolute inset-0 flex gap-1 transition-opacity duration-500 bg-gray-200 pt-6">
+            @for (imageSrc of slide; track $index) {
+              <div class="flex-1 h-full flex items-center justify-center bg-gray-200 overflow-hidden">
+                <img 
+                  [src]="imageSrc" 
+                  [alt]="adData.name + ' - Image'"
+                  class="max-w-full max-h-full object-contain">
+              </div>
+            }
+          </div>
+        }
+      </div>
+
+      <!-- Navigation Controls (show if more than 1 slide) -->
+      @if (imageSlides.length > 1) {
+        <div class="absolute inset-0 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10 px-2">
+          <button 
+            (click)="previousSlide(); $event.stopPropagation()"
+            class="w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button 
+            (click)="nextSlide(); $event.stopPropagation()"
+            class="w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Image Indicators -->
+        <div class="absolute bottom-3 left-1/2 transform -translate-x-1/2 z-10 flex gap-1.5">
+          @for (slide of imageSlides; track $index) {
+            <button 
+              (click)="goToSlide($index); $event.stopPropagation()"
+              [class.bg-white]="$index === currentSlideIndex"
+              [class.bg-gray-300]="$index !== currentSlideIndex"
+              class="w-1.5 h-1.5 rounded-full transition-all hover:bg-white">
+            </button>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Content Section -->
+  <div class="p-4">
+    <!-- Title & Brand -->
+    <div class="mb-2">
+      <h3 class="font-bold text-gray-900 text-sm mb-1 line-clamp-2">{{ adData.name }}</h3>
+      <p class="text-xs text-purple-600 font-medium">{{ adData.brand }} • Ad</p>
+    </div>
+
+    <!-- Description -->
+    <p class="text-xs text-gray-600 mb-3 line-clamp-1">{{ adData.description }}</p>
+
+    <!-- Call to Action -->
+    <div class="pt-3 border-t border-gray-200">
+      <button 
+        (click)="openAdLink(); $event.stopPropagation()"
+        class="w-full py-2 px-3 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2">
+        <span>Discover More</span>
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </button>
+    </div>
+  </div>
+</div>

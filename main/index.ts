@@ -1425,13 +1425,13 @@ app.get('/users/profile/:id', async (req, res) => {
       const following = await prisma.user.findUnique({
         where: { id: currentUserId },
         select: { 
-          following: {
+          User_A: {
             where: { id: userId },
             select: { id: true }
           }
         }
       });
-      isFollowing = following?.following?.length > 0;
+      isFollowing = following?.User_A?.length > 0;
     }
     
     // Construct response matching the expected format
@@ -1582,7 +1582,7 @@ app.get('/users/:id/following', async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: parseInt(id) },
       select: {
-        following: {
+        User_A: {
           select: { 
             id: true, 
             publicUser: {
@@ -1593,7 +1593,7 @@ app.get('/users/:id/following', async (req, res) => {
       }
     });
 
-    const following = user?.following.map((f: any) => ({
+    const following = user?.User_A.map((f: any) => ({
       id: f.id,
       name: f.publicUser?.name || 'User',
       profilePicture: f.publicUser?.profilePicture || null
@@ -2192,7 +2192,7 @@ ensureBucketsExist().catch(err => {
 });
 
 server.listen(PORT, () => {
-  // console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 // Serve static files from the Angular dist folder
