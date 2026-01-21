@@ -2192,7 +2192,7 @@ ensureBucketsExist().catch(err => {
 });
 
 server.listen(PORT, () => {
-  // console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
 
 // Serve static files from the Angular dist folder
