@@ -289,12 +289,12 @@
                   Chat with {{ activeTab === 'outgoing' ? 'Seller' : 'Buyer' }}
                 </button>
                 @if (activeTab === 'incoming' && trade.status === 'PENDING') {
-                  <button (click)="updateStatus(trade.id, 'ACCEPTED')" 
+                  <button (click)="openTradeConfirmModal(trade, 'ACCEPTED')" 
                           class="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-bold hover:bg-green-600 transition-all">
                     Accept
                   </button>
-                  <button (click)="updateStatus(trade.id, 'DECLINED')" 
-                          class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-200 transition-all">
+                  <button (click)="openTradeConfirmModal(trade, 'DECLINED')" 
+                          class="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-bold hover:bg-red-600 transition-all">
                     Decline
                   </button>
                 }
@@ -529,6 +529,111 @@
               </div>
             }
           </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (isTradeConfirmModalOpen && tradeToConfirm) {
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-[9999] flex items-center justify-center" (click)="closeTradeConfirmModal()" role="presentation">
+      <div class="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+        <div class="p-6 border-b border-gray-100">
+          <h3 class="text-xl font-bold text-gray-900">
+            {{ confirmAction === 'ACCEPTED' ? 'Accept Trade' : 'Decline Trade' }}
+          </h3>
+          <p class="text-sm text-gray-500 mt-1">Review the trade details before proceeding</p>
+        </div>
+        
+        <div class="p-6 space-y-6">
+          <!-- Your Item -->
+          <div class="bg-gray-50 rounded-xl p-4">
+            <p class="text-xs font-bold uppercase text-gray-500 mb-3">Your Item</p>
+            <div class="flex gap-3">
+              <img [src]="tradeToConfirm.targetItem.imageUrl || 'assets/placeholder-image.png'" 
+                   class="w-16 h-16 rounded-lg object-cover">
+              <div class="flex-1">
+                <h4 class="font-bold text-gray-900">{{ tradeToConfirm.targetItem.name }}</h4>
+                @if (tradeToConfirm.cashAmount > 0 && !tradeToConfirm.buyerPaysCash) {
+                  <p class="text-xs text-blue-600 font-semibold mt-1">+ RM {{ tradeToConfirm.cashAmount | number:'1.2-2' }} (you add)</p>
+                }
+              </div>
+            </div>
+          </div>
+
+          <!-- Trade Arrow -->
+          <div class="flex justify-center">
+            <div class="p-2 bg-gray-50 rounded-full border border-gray-100">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400 rotate-90" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Offered Items to You -->
+          <div class="bg-gray-50 rounded-xl p-4">
+            <p class="text-xs font-bold uppercase text-gray-500 mb-3">Offered to You ({{ tradeToConfirm.offeredItems.length }} {{ tradeToConfirm.offeredItems.length === 1 ? 'item' : 'items' }})</p>
+            <div class="space-y-2">
+              @for (offer of tradeToConfirm.offeredItems; track offer.id) {
+                <div class="flex gap-3 bg-white p-3 rounded-lg">
+                  <img [src]="offer.imageUrl || offer.collectible?.imageUrl || 'assets/placeholder-image.png'" 
+                       class="w-12 h-12 rounded-lg object-cover">
+                  <div class="flex-1">
+                    <h5 class="text-sm font-semibold text-gray-900">{{ offer.collectible?.name || 'Item' }}</h5>
+                    <p class="text-xs text-gray-500">{{ offer.collectible?.series?.name || 'Unknown Series' }}</p>
+                  </div>
+                </div>
+              }
+            </div>
+            @if (tradeToConfirm.cashAmount > 0 && tradeToConfirm.buyerPaysCash) {
+              <div class="mt-3 p-3 bg-green-50 rounded-lg border border-green-100 flex items-center gap-3">
+                <div class="flex-shrink-0">
+                  @if (tradeToConfirm.counterparty.profilePicture) {
+                    <img [src]="tradeToConfirm.counterparty.profilePicture" class="w-8 h-8 rounded-full object-cover border border-green-200">
+                  } @else {
+                    <div class="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-xs">
+                      {{ tradeToConfirm.counterparty.username.charAt(0).toUpperCase() }}
+                    </div>
+                  }
+                </div>
+                <div class="flex-1 flex flex-col justify-center">
+                  <p class="text-xs text-green-600 font-medium">{{ tradeToConfirm.counterparty.username }} adds</p>
+                  <p class="text-sm font-bold text-green-700">+ RM {{ tradeToConfirm.cashAmount | number:'1.2-2' }}</p>
+                </div>
+              </div>
+            }
+          </div>
+
+          <!-- Trading Partner -->
+          <div class="bg-gray-50 rounded-xl p-4">
+            <p class="text-xs font-bold uppercase text-gray-500 mb-3">Trading Partner</p>
+            <div class="flex items-center gap-3">
+              @if (tradeToConfirm.counterparty.profilePicture) {
+                <img [src]="tradeToConfirm.counterparty.profilePicture" class="w-10 h-10 rounded-full object-cover border border-gray-200">
+              } @else {
+                <div class="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 font-bold text-sm">
+                  {{ tradeToConfirm.counterparty.username.charAt(0).toUpperCase() }}
+                </div>
+              }
+              <div>
+                <p class="font-semibold text-gray-900">{{ atSymbol }}{{ tradeToConfirm.counterparty.username }}</p>
+                <p class="text-xs text-gray-500">{{ tradeToConfirm.counterparty.completedTrades }} trades completed</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-6 border-t border-gray-100 flex gap-3">
+          <button (click)="closeTradeConfirmModal()" 
+                  class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg font-bold hover:bg-gray-50 transition-all">
+            Cancel
+          </button>
+          <button (click)="confirmTradeAction()" 
+                  [ngClass]="confirmAction === 'ACCEPTED' 
+                    ? 'bg-green-500 hover:bg-green-600' 
+                    : 'bg-red-500 hover:bg-red-600'"
+                  class="flex-1 px-4 py-2 text-white rounded-lg font-bold transition-all">
+            {{ confirmAction === 'ACCEPTED' ? 'Accept Trade' : 'Decline Trade' }}
+          </button>
         </div>
       </div>
     </div>

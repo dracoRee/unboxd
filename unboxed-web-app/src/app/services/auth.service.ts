@@ -99,17 +99,26 @@ export class AuthService {
   }
 
   async handleOAuthCallback(redirectTo: string = '/browse'): Promise<void> {
-    const { data, error } = await this.supabaseService.auth.exchangeCodeForSession(window.location.href);
+    // Wait for Supabase to automatically process the OAuth callback
+    // (detectSessionInUrl: true handles this automatically)
+    
+    // Give Supabase a moment to process the session
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Check if we have a session now
+    const { data: { session }, error } = await this.supabaseService.auth.getSession();
 
     if (error) {
+      console.error('Session retrieval error:', error);
       throw error;
     }
 
-    if (data?.session?.user) {
-      this.currentUser.set(data.session.user);
-      this.syncWithBackend(data.session.user);
+    if (!session) {
+      throw new Error('No session found after OAuth callback');
     }
 
+    // Session is already set by onAuthStateChange listener
+    // Just navigate to the redirect location
     if (redirectTo) {
       await this.router.navigate([redirectTo]);
     }

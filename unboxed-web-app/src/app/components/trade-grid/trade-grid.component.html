@@ -1,5 +1,13 @@
 <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-  @for (item of items; track item.item_id) {
-    <app-trade-card [item]="item"></app-trade-card>
+  @for (item of gridItems; track $index) {
+    @if (isAd(item)) {
+      <!-- Divider above ad (mobile only) -->
+      <div class="col-span-1 sm:col-span-2 xl:col-span-3 h-px bg-gray-200 my-2 sm:hidden"></div>
+      <app-advertisement-card [adData]="$any(item).data"></app-advertisement-card>
+      <!-- Divider below ad (mobile only) -->
+      <div class="col-span-1 sm:col-span-2 xl:col-span-3 h-px bg-gray-200 my-2 sm:hidden"></div>
+    } @else if (isTradeItem(item)) {
+      <app-trade-card [item]="$any(item)"></app-trade-card>
+    }
   }
 </div>

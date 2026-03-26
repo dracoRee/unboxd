@@ -1427,7 +1427,7 @@ app.get('/users/profile/:id', async (req, res) => {
       const following = await prisma.user.findUnique({
         where: { id: currentUserId },
         select: { 
-          following: {
+          User_A: {
             where: { id: userId },
             select: { id: true }
           }
@@ -1597,7 +1597,7 @@ app.get('/users/:id/following', async (req, res) => {
     const user = await prisma.user.findUnique({
       where: { id: parseInt(id) },
       select: {
-        following: {
+        User_A: {
           select: { 
             id: true, 
             publicUser: {
@@ -1608,7 +1608,7 @@ app.get('/users/:id/following', async (req, res) => {
       }
     });
 
-    const following = user?.following.map((f: any) => ({
+    const following = user?.User_A.map((f: any) => ({
       id: f.id,
       name: f.publicUser?.name || 'User',
       profilePicture: f.publicUser?.profilePicture || null

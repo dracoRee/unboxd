@@ -78,6 +78,9 @@ export class TradesComponent implements OnInit {
   isUploaded = false; 
   isItemModalOpen = false;
   selectedItem: TradeItemView | null = null;
+  isTradeConfirmModalOpen = false;
+  tradeToConfirm: Trade | null = null;
+  confirmAction: 'ACCEPTED' | 'DECLINED' | null = null;
   private readonly verificationStorageKey = 'tradeVerificationOpenById';
   private verificationOpenByTradeId = new Map<number, boolean>();
   
@@ -353,5 +356,24 @@ openChat(counterpartyId: number): void {
       alert('Could not start conversation. Please try again.');
     }
   });
+}
+
+openTradeConfirmModal(trade: Trade, action: 'ACCEPTED' | 'DECLINED') {
+  this.tradeToConfirm = trade;
+  this.confirmAction = action;
+  this.isTradeConfirmModalOpen = true;
+}
+
+closeTradeConfirmModal() {
+  this.isTradeConfirmModalOpen = false;
+  this.tradeToConfirm = null;
+  this.confirmAction = null;
+}
+
+confirmTradeAction() {
+  if (this.tradeToConfirm && this.confirmAction) {
+    this.updateStatus(this.tradeToConfirm.id, this.confirmAction);
+    this.closeTradeConfirmModal();
+  }
 }
 }
