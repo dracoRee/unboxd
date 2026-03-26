@@ -6,6 +6,7 @@ import { TradeItem } from '../../models/trade-item.model';
 import { TradeService } from '../../services/trade.service';
 import { MessagingService } from '../../services/messaging.service';
 import { AuthService } from '../../services/auth.service';
+import { ReportService } from '../../services/report.service';
 
 @Component({
   selector: 'app-trade-modal',
@@ -27,11 +28,16 @@ export class TradeModalComponent implements OnInit {
   showFullDescription = false;
   buyerPaysCash = true;
 
+  isReporting = false;
+  reportReason = '';
+  reportSubmitted = false;
+
   constructor(
     private tradeService: TradeService,
     private messagingService: MessagingService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private reportService: ReportService
   ) {}
 
   ngOnInit(): void {
@@ -251,5 +257,34 @@ export class TradeModalComponent implements OnInit {
 
   shouldShowReadMore(): boolean {
     return (this.targetItem.description?.length || 0) > 100;
+  }
+
+  toggleReportMode() {
+    this.isReporting = !this.isReporting;
+    this.reportReason = '';
+    this.reportSubmitted = false;
+  }
+
+  submitReport() {
+    if (!this.reportReason.trim() || !this.targetItem) return;
+
+    const reporterId = this.authService.backendUser()?.id;
+    if (!reporterId) {
+      console.error('Cannot submit report: user is not authenticated in backend');
+      return;
+    }
+    
+    this.reportService.submitReport({
+      reporterId,
+      reportedUserId: this.targetItem.postedBy?.id,
+      listingId: this.targetItem.item_id,
+      reason: this.reportReason
+    }).subscribe({
+      next: () => {
+        this.reportSubmitted = true;
+        setTimeout(() => this.toggleReportMode(), 2000);
+      },
+      error: (err) => console.error('Failed to report listing', err)
+    });
   }
 }

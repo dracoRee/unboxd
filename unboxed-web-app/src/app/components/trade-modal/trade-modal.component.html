@@ -6,12 +6,39 @@
         <h2 class="text-lg sm:text-2xl font-black text-gray-900">Propose Trade</h2>
         <p class="text-xs sm:text-sm text-gray-500">Select items from your collection to offer</p>
       </div>
-      <button (click)="close.emit()" class="p-2 hover:bg-gray-200 rounded-full transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      <div class="flex items-center gap-2">
+        @if (!isOwnListing) {
+          <button (click)="toggleReportMode()" class="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-sm font-semibold hover:bg-red-100 flex items-center border border-red-100 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Report
+          </button>
+        }
+        <button (click)="close.emit()" class="p-2 hover:bg-gray-200 rounded-full transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
     </div>
+
+    <!-- Report Overlay -->
+    @if (isReporting) {
+      <div class="absolute inset-0 z-50 bg-white flex flex-col items-center justify-center p-8 text-center bg-opacity-95 backdrop-blur-sm shadow-xl">
+        <h2 class="text-2xl font-bold mb-4 text-gray-900">Report Listing</h2>
+        @if (reportSubmitted) {
+          <div class="text-green-600 font-semibold mb-4 text-lg bg-green-50 p-4 rounded-xl border border-green-200">Report submitted successfully. Thank you.</div>
+        } @else {
+          <p class="mb-6 text-gray-600 max-w-sm">Why are you reporting this listing? Please provide details.</p>
+          <textarea [(ngModel)]="reportReason" class="w-full max-w-md p-4 border border-gray-300 rounded-xl mb-6 focus:ring-2 focus:ring-red-500 focus:border-red-500 outline-none text-gray-800" rows="4" placeholder="It's a scam, counterfeit, offensive..."></textarea>
+          <div class="flex gap-4">
+            <button (click)="toggleReportMode()" class="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 font-bold transition-colors">Cancel</button>
+            <button (click)="submitReport()" [disabled]="!reportReason.trim()" class="px-6 py-2.5 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 font-bold transition-colors shadow-sm">Submit Report</button>
+          </div>
+        }
+      </div>
+    }
 
     <div class="p-4 sm:p-8 overflow-y-auto flex-1">
       @if (isOwnListing) {

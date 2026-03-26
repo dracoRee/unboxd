@@ -29,6 +29,15 @@
                         class="btn-primary follow-btn">
                   {{ profile.isFollowing ? 'Following' : 'Follow' }}
                 </button>
+                <button *ngIf="authService.backendUser()" 
+                        (click)="toggleUserVouch()" 
+                        [ngClass]="profile.hasVouched ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'"
+                        class="px-4 py-2 rounded-lg font-semibold transition-colors duration-200 ml-2 shadow-sm border border-gray-200 flex items-center justify-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" [ngClass]="profile.hasVouched ? 'text-indigo-600 fill-indigo-600' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  {{ profile.hasVouched ? 'Vouched' : 'Vouch' }}
+                </button>
               </ng-container>
             </div>
           </div>
@@ -36,6 +45,10 @@
           <p class="email" *ngIf="isOwnProfile">{{ profile.email }}</p>
           
           <div class="stats">
+            <div class="stat-item">
+              <strong>{{ profile.vouchCount || 0 }}</strong>
+              <span>Vouches</span>
+            </div>
             <div class="stat-item">
               <strong>{{ profile._count.listings || 0 }}</strong>
               <span>Listings</span>

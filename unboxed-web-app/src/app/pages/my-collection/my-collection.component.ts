@@ -1,6 +1,7 @@
 import { Component, OnInit, effect, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { CollectionService } from '../../services/collection.service';
 import { AuthService } from '../../services/auth.service';
 import { SeriesProgress } from '../../models/collection.model';
@@ -87,7 +88,8 @@ export class MyCollectionComponent implements OnInit {
 
   constructor(
     private collectionService: CollectionService,
-    private authService: AuthService
+    private authService: AuthService,
+    private router: Router
   ) {
     effect(() => {
       this.userId = this.authService.backendUser()?.id;
@@ -142,6 +144,28 @@ export class MyCollectionComponent implements OnInit {
         this.loadModelsBySeries(preselectedSeriesId);
       }
     }
+  }
+
+  startListingFromCollection(item: any, seriesName: string, event: Event) {
+    event.stopPropagation();
+
+    if (item?.imageUrl) {
+      sessionStorage.setItem('uploadedItemImage', item.imageUrl);
+    }
+
+    this.router.navigate(['/trades/upload-item'], {
+      state: {
+        prefill: {
+          title: item?.name || '',
+          seriesName: seriesName || '',
+          modelName: item?.name || '',
+          serialNumber: item?.serialNumber || '',
+          condition: item?.condition || 'BRAND_NEW',
+          referenceValue: item?.referenceValue ?? null,
+          uploadedImageUrl: item?.imageUrl || null
+        }
+      }
+    });
   }
 
   openEditModal(item: any, seriesId: number, event: Event) {

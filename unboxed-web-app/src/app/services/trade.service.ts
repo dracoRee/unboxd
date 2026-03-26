@@ -258,6 +258,8 @@ export class TradeService {
     return {
       item_id: listingId,
       isFavourited: this.wishlistedIds.has(listingId),
+      vouchCount: parseInt(item.vouchCount) || 0,
+      hasVouched: item.hasVouched || false,
       collectible_id: collectibleId,
       listingTitle: item.title,
       name: itemName,

@@ -13,6 +13,8 @@ export interface UserProfile {
   bio?: string;
   profilePicture?: string;
   isFollowing?: boolean;
+  vouchCount?: number;
+  hasVouched?: boolean;
   _count: {
     User_A: number;
     User_B: number;

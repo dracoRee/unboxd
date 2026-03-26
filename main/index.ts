@@ -1394,6 +1394,7 @@ app.get('/users/profile/:id', async (req, res) => {
         bio: true,
         profilePicture: true,
         isVerified: true,
+        vouchCount: true,
         user: {
           select: {
             id: true,
@@ -1420,6 +1421,7 @@ app.get('/users/profile/:id', async (req, res) => {
     
     // Check if following status
     let isFollowing = false;
+    let hasVouched = false;
     if (currentUserId) {
       // Query the relation to see if connection exists
       const following = await prisma.user.findUnique({
@@ -1432,6 +1434,17 @@ app.get('/users/profile/:id', async (req, res) => {
         }
       });
       isFollowing = following?.following?.length > 0;
+
+      const vouch = await prisma.vouch.findUnique({
+        where: {
+          type_authorId_targetId: {
+            type: 'USER',
+            authorId: currentUserId,
+            targetId: userId
+          }
+        }
+      });
+      hasVouched = !!vouch;
     }
     
     // Construct response matching the expected format
@@ -1442,6 +1455,8 @@ app.get('/users/profile/:id', async (req, res) => {
       email: PublicUser.user.email,
       bio: PublicUser.bio,
       profilePicture: PublicUser.profilePicture,
+      vouchCount: PublicUser.vouchCount,
+      hasVouched,
       _count: {
         ...PublicUser.user._count,
         listings: (PublicUser as any)._count.listings
@@ -2183,6 +2198,70 @@ app.patch('/listings/:id/availability', async (req, res) => {
   } catch (error) {
     console.error('Failed to update listing:', error);
     res.status(500).json({ error: 'Failed to update listing' });
+  }
+});
+
+// Report user/listing
+app.post('/reports', async (req, res) => {
+  try {
+    const { reporterId, reportedUserId, listingId, reason } = req.body;
+
+    if (!reporterId || !reason || !String(reason).trim()) {
+      return res.status(400).json({ error: 'reporterId and reason are required' });
+    }
+
+    if (!reportedUserId && !listingId) {
+      return res.status(400).json({ error: 'Either reportedUserId or listingId is required' });
+    }
+
+    const parsedReporterId = parseInt(reporterId);
+    const parsedReportedUserId = reportedUserId ? parseInt(reportedUserId) : null;
+    const parsedListingId = listingId ? parseInt(listingId) : null;
+
+    if (Number.isNaN(parsedReporterId)) {
+      return res.status(400).json({ error: 'Invalid reporterId' });
+    }
+
+    if (parsedReportedUserId !== null && Number.isNaN(parsedReportedUserId)) {
+      return res.status(400).json({ error: 'Invalid reportedUserId' });
+    }
+
+    if (parsedListingId !== null && Number.isNaN(parsedListingId)) {
+      return res.status(400).json({ error: 'Invalid listingId' });
+    }
+
+    const reporter = await prisma.user.findUnique({ where: { id: parsedReporterId } });
+    if (!reporter) {
+      return res.status(404).json({ error: 'Reporter not found' });
+    }
+
+    if (parsedReportedUserId !== null) {
+      const reportedUser = await prisma.user.findUnique({ where: { id: parsedReportedUserId } });
+      if (!reportedUser) {
+        return res.status(404).json({ error: 'Reported user not found' });
+      }
+    }
+
+    if (parsedListingId !== null) {
+      const listing = await prisma.userListing.findUnique({ where: { id: parsedListingId } });
+      if (!listing) {
+        return res.status(404).json({ error: 'Listing not found' });
+      }
+    }
+
+    const report = await prisma.report.create({
+      data: {
+        reporterId: parsedReporterId,
+        reportedUserId: parsedReportedUserId,
+        listingId: parsedListingId,
+        reason: String(reason).trim(),
+      }
+    });
+
+    res.status(201).json(report);
+  } catch (error) {
+    console.error('Failed to submit report:', error);
+    res.status(500).json({ error: 'Failed to submit report' });
   }
 });
 

@@ -90,6 +90,11 @@ export class UploadItemComponent implements OnInit {
       this.editingId = parseInt(id, 10);
       this.loadListing(this.editingId);
     } else {
+      const prefill = history.state?.prefill;
+      if (prefill) {
+        this.applyPrefillFromCollection(prefill);
+      }
+
       // Get the uploaded image from session storage or state
       const storedImage = sessionStorage.getItem('uploadedItemImage');
       if (storedImage) {
@@ -97,6 +102,21 @@ export class UploadItemComponent implements OnInit {
       }
     }
     this.loadSeries();
+  }
+
+  private applyPrefillFromCollection(prefill: any): void {
+    this.title = prefill?.title || this.title;
+    this.seriesName = prefill?.seriesName || this.seriesName;
+    this.seriesSearchTerm = prefill?.seriesName || this.seriesSearchTerm;
+    this.modelSearchTerm = prefill?.modelName || this.modelSearchTerm;
+    this.serialNumber = prefill?.serialNumber || this.serialNumber;
+    this.condition = prefill?.condition || this.condition;
+    this.referenceValue = prefill?.referenceValue ?? this.referenceValue;
+
+    if (prefill?.uploadedImageUrl) {
+      this.uploadedImageUrl = prefill.uploadedImageUrl;
+      sessionStorage.setItem('uploadedItemImage', prefill.uploadedImageUrl);
+    }
   }
 
   @HostListener('document:click', ['$event'])
@@ -135,6 +155,18 @@ export class UploadItemComponent implements OnInit {
       } else {
         this.selectedSeries = 'custom';
         this.customSeriesName = this.seriesName;
+      }
+    }
+  }
+
+  matchModelSelection(models: any[]) {
+    // Exact or case-insensitive match from the existing model search term
+    if (this.modelSearchTerm) {
+      const matched = models.find(m => m.name.toLowerCase() === this.modelSearchTerm.toLowerCase());
+      if (matched) {
+        this.selectedModelId = matched.id;
+        this.modelSearchTerm = matched.name;
+        this.onModelChange();
       }
     }
   }
@@ -182,6 +214,8 @@ export class UploadItemComponent implements OnInit {
           }
           // Ensure reference value and title are updated if needed
           this.onModelChange();
+        } else if (!this.isEditing && this.modelSearchTerm) {
+          this.matchModelSelection(models);
         }
       },
       error: (err) => {

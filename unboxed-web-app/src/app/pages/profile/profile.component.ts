@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterModule } from '@angular/router';
 import { UserService, UserProfile, UserListing } from '../../services/user.service';
 import { AuthService } from '../../services/auth.service';
 import { SupabaseService } from '../../services/supabase.service';
+import { VouchService } from '../../services/vouch.service';
 import { FormsModule } from '@angular/forms';
 
 @Component({
@@ -27,8 +28,9 @@ export class ProfileComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private userService: UserService,
-    private authService: AuthService,
-    private supabaseService: SupabaseService
+    public authService: AuthService,
+    private supabaseService: SupabaseService,
+    private vouchService: VouchService
   ) {}
 
   ngOnInit() {
@@ -58,6 +60,29 @@ export class ProfileComponent implements OnInit {
   loadListings(userId: number) {
     this.userService.getUserListings(userId).subscribe(listings => {
       this.userListings = listings;
+    });
+  }
+
+  toggleUserVouch() {
+    const currentUser = this.authService.backendUser();
+    if (!currentUser || !this.profile || this.isOwnProfile) return;
+
+    // Optimistic Update
+    this.profile.hasVouched = !this.profile.hasVouched;
+    this.profile.vouchCount = (this.profile.vouchCount || 0) + (this.profile.hasVouched ? 1 : -1);
+
+    this.vouchService.toggleVouch('USER', this.profile.id, this.profile.hasVouched).subscribe({
+      next: (res) => {
+        if (this.profile) this.profile.vouchCount = res.vouchCount;
+      },
+      error: (err) => {
+        console.error('Failed to toggle user vouch', err);
+        // Revert on failure
+        if (this.profile) {
+          this.profile.hasVouched = !this.profile.hasVouched;
+          this.profile.vouchCount = (this.profile.vouchCount || 0) + (this.profile.hasVouched ? 1 : -1);
+        }
+      }
     });
   }
 

@@ -35,6 +35,10 @@ model User {
   userConversations Conversation[]    @relation("ConversationToUser")
   User_A            User[]            @relation("UserFollows")
   User_B            User[]            @relation("UserFollows")
+  vouchesReceived   Vouch[]           @relation("UserVouchesReceived")
+  vouchesGiven      Vouch[]           @relation("VouchesGiven")
+  reportsMade       Report[]          @relation("ReportsMade")
+  reportsReceived   Report[]          @relation("ReportsReceived")
 }
 
 model PublicUser {
@@ -43,6 +47,7 @@ model PublicUser {
   bio            String?
   profilePicture String?
   isVerified     Boolean       @default(false)
+  vouchCount     Int           @default(0)
   username       String        @unique
   user           User          @relation(fields: [id], references: [id])
   listings       UserListing[]
@@ -110,9 +115,12 @@ model UserListing {
   referenceValue      Float?
   seriesName          String?
   status              ListingStatus    @default(AVAILABLE)
+  vouchCount          Int              @default(0)
   collectible         Collectible?     @relation(fields: [collectibleId], references: [id])
   user                PublicUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
   wishlistedBy        WishlistItem[]
+  vouchesReceived     Vouch[]          @relation("ListingVouchesReceived")
+  reports             Report[]         @relation("ListingReports")
 
   @@index([userId])
   @@index([collectibleId])
@@ -204,4 +212,50 @@ enum ListingCondition {
   LIGHTLY_USED
   WELL_USED
   HEAVILY_USED
+}
+
+enum VouchType {
+  USER
+  LISTING
+}
+
+model Vouch {
+  id        Int       @id @default(autoincrement())
+  type      VouchType
+  userId    Int?
+  listingId Int?
+  authorId  Int
+  createdAt DateTime  @default(now())
+
+  targetUser    User?        @relation("UserVouchesReceived", fields: [userId], references: [id], onDelete: Cascade)
+  targetListing UserListing? @relation("ListingVouchesReceived", fields: [listingId], references: [id], onDelete: Cascade)
+  author        User         @relation("VouchesGiven", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@unique([type, authorId, userId]) // Can only vouch a user once
+  @@unique([type, authorId, listingId]) // Can only vouch a listing once
+}
+
+model Report {
+  id             Int          @id @default(autoincrement())
+  reporterId     Int
+  reportedUserId Int?
+  listingId      Int?
+  reason         String
+  status         ReportStatus @default(PENDING)
+  createdAt      DateTime     @default(now())
+
+  reporter     User         @relation("ReportsMade", fields: [reporterId], references: [id])
+  reportedUser User?        @relation("ReportsReceived", fields: [reportedUserId], references: [id])
+  listing      UserListing? @relation("ListingReports", fields: [listingId], references: [id])
+
+  @@index([reporterId])
+  @@index([reportedUserId])
+  @@index([listingId])
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
 }

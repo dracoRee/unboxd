@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { TradeItem } from '../../models/trade-item.model';
 import { TradeService } from '../../services/trade.service';
 import { AuthService } from '../../services/auth.service';
+import { VouchService } from '../../services/vouch.service';
 
 @Component({
   selector: 'app-trade-card',
@@ -19,7 +20,8 @@ export class TradeCardComponent {
 
   constructor(
     private tradeService: TradeService,
-    private authService: AuthService
+    private authService: AuthService,
+    private vouchService: VouchService
   ) {}
 
   toggleFavourite(event: Event) {
@@ -58,6 +60,27 @@ export class TradeCardComponent {
 
   onProposeTrade() {
     this.tradeService.proposeTrade(this.item);
+  }
+
+  toggleVouch(event: Event) {
+    event.stopPropagation();
+    if (!this.authService.backendUser()) return; // Prevent vouching if not logged in
+
+    // Optimistic UI update
+    this.item.hasVouched = !this.item.hasVouched;
+    this.item.vouchCount = (this.item.vouchCount || 0) + (this.item.hasVouched ? 1 : -1);
+
+    this.vouchService.toggleVouch('LISTING', this.item.item_id, this.item.hasVouched).subscribe({
+      next: (response) => {
+        this.item.vouchCount = response.vouchCount; // Sync with real count
+      },
+      error: (err) => {
+        console.error('Failed to toggle vouch', err);
+        // Revert optimistic update on error
+        this.item.hasVouched = !this.item.hasVouched;
+        this.item.vouchCount = (this.item.vouchCount || 0) + (this.item.hasVouched ? 1 : -1);
+      }
+    });
   }
 
   onCardClick(item: TradeItem) {

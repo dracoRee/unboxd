@@ -17,6 +17,8 @@ export interface TradeItem {
   condition: string;
   listedAt: Date;
   isFavourited?: boolean;
+  vouchCount?: number;
+  hasVouched?: boolean;
   postedBy: {
     id: number;
     name: string;
