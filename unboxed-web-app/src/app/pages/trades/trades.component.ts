@@ -1,13 +1,13 @@
-import { Component, OnInit, effect, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, effect, ViewChild, ElementRef } from '@angular/core';
 
 import { CommonModule } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
-import { TradeService } from '../../services/trade.service';
+import { TradeService, SwapSuggestion } from '../../services/trade.service';
 import { AuthService } from '../../services/auth.service';
 import { UserService, UserListing } from '../../services/user.service';
 import { CollectionService } from '../../services/collection.service';
 import { MessagingService } from '../../services/messaging.service';
-import { ChatComponent } from '../../components/chat/chat.component';
+import { Subscription, Subject, debounceTime } from 'rxjs';
 
 export interface VerificationChecklist {
   reviewsChecked: boolean;
@@ -24,6 +24,7 @@ export interface Trade {
   proposerId: number;
   receiverId: number;
   status: string;
+  version: number;
   targetItem: {
     name: string;
     imageUrl: string;
@@ -65,13 +66,15 @@ interface TradeItemView {
   styleUrl: './trades.component.css'
 })
 
-export class TradesComponent implements OnInit {
+export class TradesComponent implements OnInit, OnDestroy {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   
   atSymbol = "@";
   trades: Trade[] = [];
+  swapSuggestions: SwapSuggestion[] = [];
+  isLoadingSuggestions = false;
   myListings: UserListing[] = [];
-  activeTab: 'outgoing' | 'incoming' | 'listings' = 'listings';
+  activeTab: 'outgoing' | 'incoming' | 'listings' | 'suggested' = 'listings';
   userId?: number;
   activeChatTradeId: number | null = null;
   isScanning = false;
@@ -83,6 +86,10 @@ export class TradesComponent implements OnInit {
   confirmAction: 'ACCEPTED' | 'DECLINED' | null = null;
   private readonly verificationStorageKey = 'tradeVerificationOpenById';
   private verificationOpenByTradeId = new Map<number, boolean>();
+  private realtimeBound = false;
+  private readonly subscriptions = new Subscription();
+  private checklistPersist$ = new Subject<Trade>();
+  private checklistSub?: Subscription;
   
   checklistItems: Array<{ key: keyof VerificationChecklist, label: string, helper: string }> = [
     { 
@@ -126,11 +133,84 @@ export class TradesComponent implements OnInit {
       if (this.userId) {
         this.loadTrades();
         this.loadListings();
+        this.loadSwapSuggestions();
+        this.bindRealtime(this.userId);
       }
     });
   }
 
-  ngOnInit(): void {}
+  ngOnInit(): void {
+    this.checklistSub = this.checklistPersist$.pipe(
+      debounceTime(400)
+    ).subscribe(trade => {
+      this.persistChecklist(trade);
+    });
+  }
+
+  ngOnDestroy(): void {
+    this.subscriptions.unsubscribe();
+    this.checklistSub?.unsubscribe();
+  }
+
+  private bindRealtime(userId: number) {
+    if (this.realtimeBound) return;
+    this.realtimeBound = true;
+
+    this.messagingService.joinUserRoom(userId);
+
+    this.subscriptions.add(
+      this.messagingService.onTradeCreated().subscribe(() => {
+        this.loadTrades();
+        this.loadSwapSuggestions();
+      })
+    );
+
+    this.subscriptions.add(
+      this.messagingService.onTradeStatus().subscribe(payload => {
+        this.applyTradeStatusUpdate(payload.tradeId, payload.status, payload.version);
+      })
+    );
+
+    this.subscriptions.add(
+      this.messagingService.onTradeChecklist().subscribe(payload => {
+        this.applyTradeChecklistUpdate(
+          payload.tradeId,
+          payload.verificationChecklist,
+          payload.verificationStatus,
+          payload.version
+        );
+      })
+    );
+  }
+
+  private applyTradeStatusUpdate(tradeId: number, status: string, version: number) {
+    const index = this.trades.findIndex(trade => trade.id === tradeId);
+    if (index === -1) {
+      this.loadTrades();
+      return;
+    }
+    const trade = this.trades[index];
+    this.trades[index] = {
+      ...trade,
+      status,
+      version
+    };
+  }
+
+  private applyTradeChecklistUpdate(tradeId: number, checklist: Record<string, boolean>, status: string, version: number) {
+    const index = this.trades.findIndex(trade => trade.id === tradeId);
+    if (index === -1) {
+      this.loadTrades();
+      return;
+    }
+    const trade = this.trades[index];
+    this.trades[index] = {
+      ...trade,
+      verificationChecklist: { ...trade.verificationChecklist, ...checklist } as VerificationChecklist,
+      verificationStatus: status as VerificationStatus,
+      version
+    };
+  }
 
   private loadVerificationState() {
     try {
@@ -174,14 +254,35 @@ export class TradesComponent implements OnInit {
     });
   }
 
+  loadSwapSuggestions() {
+    if (!this.userId) return;
+    this.isLoadingSuggestions = true;
+    this.tradeService.getSwapSuggestions(this.userId).subscribe({
+      next: suggestions => {
+        this.swapSuggestions = suggestions;
+      },
+      error: () => {
+        this.swapSuggestions = [];
+        this.isLoadingSuggestions = false;
+      },
+      complete: () => {
+        this.isLoadingSuggestions = false;
+      }
+    });
+  }
+
   enrichTradeData(trade: any): Trade {
     const isOpen = this.verificationOpenByTradeId.get(trade.id) ?? false;
     const rawUsername = trade?.counterparty?.username ?? trade?.counterparty?.name ?? '';
     const normalizedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
     const resolvedUsername = normalizedUsername || `User_${trade?.counterparty?.id ?? 'Unknown'}`;
+    const normalizedVerificationStatus = typeof trade?.verificationStatus === 'string'
+      ? trade.verificationStatus.toLowerCase()
+      : 'not_started';
     return {
       ...trade,
-      verificationStatus: trade.verificationStatus || 'not_started',
+      version: Number.isInteger(trade.version) ? trade.version : 0,
+      verificationStatus: normalizedVerificationStatus as VerificationStatus,
       verificationChecklist: trade.verificationChecklist || {
         reviewsChecked: false,
         meetupArranged: false,
@@ -216,9 +317,23 @@ export class TradesComponent implements OnInit {
     
   }
 
-  updateStatus(tradeId: number, status: string) {
-    this.tradeService.updateTradeStatus(tradeId, status).subscribe(() => {
-      this.loadTrades();
+  updateStatus(trade: Trade, status: string) {
+    this.tradeService.updateTradeStatusWithGuard(
+      trade.id,
+      status,
+      trade.status,
+      trade.version
+    ).subscribe({
+      next: (updated) => {
+        if (updated?.status) {
+          this.applyTradeStatusUpdate(trade.id, updated.status, updated.version ?? trade.version + 1);
+        } else {
+          this.loadTrades();
+        }
+      },
+      error: () => {
+        this.loadTrades();
+      }
     });
   }
 
@@ -238,15 +353,7 @@ export class TradesComponent implements OnInit {
     this.saveVerificationState();
   }
 
-  toggleCheck(trade: Trade, key: keyof VerificationChecklist) {
-    trade.verificationChecklist[key] = !trade.verificationChecklist[key];
-    const count = this.getProgressCount(trade);
-    if (count > 0 && count < 5) {
-      trade.verificationStatus = 'in_progress';
-    } else if (count === 0) {
-      trade.verificationStatus = 'not_started';
-    }
-  }
+  
 
   getProgressCount(trade: Trade): number {
     return Object.values(trade.verificationChecklist).filter(Boolean).length;
@@ -259,7 +366,55 @@ export class TradesComponent implements OnInit {
   markAsVerified(trade: Trade) {
     if (this.getProgressCount(trade) >= 3) {
       trade.verificationStatus = 'verified';
+      this.persistChecklist(trade);
     }
+  }
+
+  toggleCheck(trade: Trade, key: keyof VerificationChecklist) {
+    const latestTrade = this.trades.find(t => t.id === trade.id);
+    if (!latestTrade) return;
+
+    latestTrade.verificationChecklist[key] = !latestTrade.verificationChecklist[key];
+
+    const count = this.getProgressCount(latestTrade);
+    latestTrade.verificationStatus = count === 0 ? 'not_started'
+      : count >= 5 ? 'verified'
+      : 'in_progress';
+
+    this.checklistPersist$.next(latestTrade);  // debounced — won't fire until clicks stop
+    if (count > 0 && count < 5) {
+      latestTrade.verificationStatus = 'in_progress';
+    } else if (count === 0) {
+      latestTrade.verificationStatus = 'not_started';
+    } else {
+      latestTrade.verificationStatus = 'verified';
+    }
+
+    this.persistChecklist(latestTrade);
+  }
+
+  private persistChecklist(trade: Trade) {
+    this.tradeService.updateTradeChecklist(
+      trade.id,
+      trade.verificationChecklist as unknown as Record<string, boolean>,
+      trade.verificationStatus,
+      trade.version
+    ).subscribe({
+      next: (updated) => {
+        // Write version back in-place — don't spread a new object
+        const index = this.trades.findIndex(t => t.id === trade.id);
+        if (index !== -1 && updated?.version !== undefined) {
+          this.trades[index].version = updated.version;
+          this.trades[index].verificationChecklist = updated.verificationChecklist ?? this.trades[index].verificationChecklist;
+          this.trades[index].verificationStatus = updated.verificationStatus ?? this.trades[index].verificationStatus;
+        } else {
+          this.loadTrades();
+        }
+      },
+      error: () => {
+        this.loadTrades();
+      }
+    });
   }
 
   getStatusClass(trade: Trade) {
@@ -267,9 +422,11 @@ export class TradesComponent implements OnInit {
     switch (status) {
       case 'PENDING': return 'bg-yellow-100 text-yellow-700';
       case 'ACCEPTED': return 'bg-green-100 text-green-700';
+      case 'IN_TRANSIT': return 'bg-blue-100 text-blue-700';
       case 'DECLINED': return 'bg-red-100 text-red-700';
       case 'COMPLETED': return 'bg-indigo-100 text-indigo-700';
       case 'CANCELLED': return 'bg-gray-100 text-gray-700';
+      case 'EXPIRED': return 'bg-gray-200 text-gray-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   }
@@ -358,6 +515,10 @@ openChat(counterpartyId: number): void {
   });
 }
 
+  isCurrentUser(userId: number) {
+    return this.userId === userId;
+  }
+
 openTradeConfirmModal(trade: Trade, action: 'ACCEPTED' | 'DECLINED') {
   this.tradeToConfirm = trade;
   this.confirmAction = action;
@@ -372,7 +533,7 @@ closeTradeConfirmModal() {
 
 confirmTradeAction() {
   if (this.tradeToConfirm && this.confirmAction) {
-    this.updateStatus(this.tradeToConfirm.id, this.confirmAction);
+    this.updateStatus(this.tradeToConfirm, this.confirmAction);
     this.closeTradeConfirmModal();
   }
 }

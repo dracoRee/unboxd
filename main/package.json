@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch index.ts",
     "start": "tsx index.ts",
-    "import-collectibles": "tsx import_collectibles.ts"
+    "import-collectibles": "tsx import_collectibles.ts",
+    "loadtest:swap": "k6 run loadtest/k6-swap.js"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

@@ -56,10 +56,56 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 // const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:4200';
 
+const DEFAULT_TRADE_CHECKLIST = {
+  reviewsChecked: false,
+  meetupArranged: false,
+  itemInspected: false,
+  proofRequested: false,
+  authenticityVerified: false
+};
+
+const TRADE_STATUS_TRANSITIONS: Record<string, Set<string>> = {
+  PENDING: new Set(['ACCEPTED', 'DECLINED', 'CANCELLED', 'EXPIRED']),
+  ACCEPTED: new Set(['IN_TRANSIT', 'CANCELLED']),
+  IN_TRANSIT: new Set(['COMPLETED', 'CANCELLED']),
+  COMPLETED: new Set([]),
+  DECLINED: new Set([]),
+  CANCELLED: new Set([]),
+  EXPIRED: new Set([])
+};
+
+const normalizeStatus = (value?: string) => (value || '').toUpperCase();
+
+const canTransitionStatus = (from: string, to: string) => {
+  const allowed = TRADE_STATUS_TRANSITIONS[from] || new Set<string>();
+  return allowed.has(to);
+};
+
+const normalizeVerificationStatus = (value?: string) => {
+  const normalized = (value || '').toLowerCase();
+  if (normalized === 'verified') return 'verified';
+  if (normalized === 'in_progress') return 'in_progress';
+  return 'not_started';
+};
+
+const computeVerificationStatus = (checklist: Record<string, boolean>) => {
+  const completed = Object.values(checklist).filter(Boolean).length;
+  if (completed === 0) return 'not_started';
+  if (completed >= 5) return 'verified';
+  return 'in_progress';
+};
+
 // Socket.io connection handling
 // Socket.io connection handling
 io.on('connection', (socket) => {
   // console.log('User connected:', socket.id);
+
+  socket.on('join_user', (userId) => {
+    const parsedUserId = parseInt(userId);
+    if (!Number.isNaN(parsedUserId)) {
+      socket.join(`user_${parsedUserId}`);
+    }
+  });
 
   socket.on('join_conversation', (conversationId) => {
     socket.join(`conversation_${conversationId}`);
@@ -870,6 +916,8 @@ app.post('/trades', async (req, res) => {
         status: 'PENDING',
         cashAmount: cashTopUp ? parseFloat(cashTopUp) : 0,
         buyerPaysCash: buyerPaysCash !== undefined ? buyerPaysCash : true,
+        verificationStatus: 'not_started',
+        verificationChecklist: DEFAULT_TRADE_CHECKLIST,
         offeredItems: {
           create: offeredIds.map((id: number) => ({ collectibleId: id }))
         }
@@ -892,11 +940,33 @@ app.post('/trades', async (req, res) => {
       }
     });
 
+    await prisma.tradeEvent.create({
+      data: {
+        tradeId: trade.id,
+        actorId: parseInt(proposerId),
+        type: 'STATUS',
+        toStatus: 'PENDING',
+        note: 'Trade created'
+      }
+    });
+
     const mappedTrade = {
       ...trade,
       proposer: { ...trade.proposer, name: trade.proposer.publicUser?.name || 'User' },
       receiver: { ...trade.receiver, name: trade.receiver.publicUser?.name || 'User' }
     };
+
+    io.to(`user_${trade.proposerId}`).emit('trade:created', {
+      tradeId: trade.id,
+      status: trade.status,
+      version: trade.version
+    });
+    io.to(`user_${trade.receiverId}`).emit('trade:created', {
+      tradeId: trade.id,
+      status: trade.status,
+      version: trade.version
+    });
+
     res.status(201).json(mappedTrade);
   } catch (error) {
     console.error(error);
@@ -1053,18 +1123,400 @@ app.get('/trades/:userId', async (req, res) => {
 
 app.patch('/trades/:id', async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, expectedStatus, version, actorId, note } = req.body;
   try {
-    const trade = await prisma.trade.update({
-      where: { id: parseInt(id) },
-      data: { status }
+    const tradeId = parseInt(id);
+    const nextStatus = normalizeStatus(status);
+
+    if (!nextStatus) {
+      return res.status(400).json({ error: 'status is required' });
+    }
+
+    const trade = await prisma.trade.findUnique({
+      where: { id: tradeId }
     });
 
-    // If accepted, we could theoretically swap ownership here, 
+    if (!trade) {
+      return res.status(404).json({ error: 'Trade not found' });
+    }
+
+    if (Number.isInteger(actorId) && actorId !== trade.proposerId && actorId !== trade.receiverId) {
+      return res.status(403).json({ error: 'Not authorized to update this checklist' });
+    }
+
+    if (Number.isInteger(actorId) && actorId !== trade.proposerId && actorId !== trade.receiverId) {
+      return res.status(403).json({ error: 'Not authorized to update this trade' });
+    }
+
+    if (!canTransitionStatus(trade.status, nextStatus)) {
+      return res.status(400).json({
+        error: `Invalid status transition: ${trade.status} -> ${nextStatus}`
+      });
+    }
+
+    const guardStatus = normalizeStatus(expectedStatus) || trade.status;
+    const guardVersion = Number.isInteger(version) ? version : trade.version;
+
+    const updateResult = await prisma.trade.updateMany({
+      where: {
+        id: tradeId,
+        status: guardStatus,
+        version: guardVersion
+      },
+      data: {
+        status: nextStatus,
+        version: { increment: 1 }
+      }
+    });
+
+    if (updateResult.count === 0) {
+      return res.status(409).json({
+        error: 'Trade status changed. Refresh and try again.'
+      });
+    }
+
+    const updatedTrade = await prisma.trade.findUnique({
+      where: { id: tradeId }
+    });
+
+    await prisma.tradeEvent.create({
+      data: {
+        tradeId,
+        actorId: Number.isInteger(actorId) ? actorId : null,
+        type: 'STATUS',
+        fromStatus: trade.status,
+        toStatus: nextStatus,
+        note: typeof note === 'string' ? note : null
+      }
+    });
+
+    io.to(`user_${trade.proposerId}`).emit('trade:status', {
+      tradeId,
+      status: nextStatus,
+      version: updatedTrade?.version ?? trade.version + 1,
+      updatedAt: updatedTrade?.updatedAt ?? new Date().toISOString()
+    });
+    io.to(`user_${trade.receiverId}`).emit('trade:status', {
+      tradeId,
+      status: nextStatus,
+      version: updatedTrade?.version ?? trade.version + 1,
+      updatedAt: updatedTrade?.updatedAt ?? new Date().toISOString()
+    });
+
+    // If accepted, we could theoretically swap ownership here,
     // but for prototype, we just update status.
-    res.json(trade);
+    res.json(updatedTrade ?? { id: tradeId, status: nextStatus });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update trade' });
+  }
+});
+
+app.patch('/trades/:id/checklist', async (req, res) => {
+  const { id } = req.params;
+  const { checklist, verificationStatus, version, actorId } = req.body;
+
+  try {
+    const tradeId = parseInt(id);
+    const trade = await prisma.trade.findUnique({
+      where: { id: tradeId },
+      select: { id: true, proposerId: true, receiverId: true, version: true }
+    });
+
+    if (!trade) {
+      return res.status(404).json({ error: 'Trade not found' });
+    }
+
+    const incomingChecklist = (checklist && typeof checklist === 'object') ? checklist : {};
+    const nextChecklist = {
+      ...DEFAULT_TRADE_CHECKLIST,
+      ...incomingChecklist
+    } as Record<string, boolean>;
+
+    Object.keys(DEFAULT_TRADE_CHECKLIST).forEach((key) => {
+      nextChecklist[key] = Boolean(nextChecklist[key]);
+    });
+
+    const computedStatus = computeVerificationStatus(nextChecklist);
+    const nextStatus = verificationStatus
+      ? normalizeVerificationStatus(verificationStatus)
+      : computedStatus;
+
+    const guardVersion = Number.isInteger(version) ? version : trade.version;
+
+    const updateResult = await prisma.trade.updateMany({
+      where: {
+        id: tradeId,
+        version: guardVersion
+      },
+      data: {
+        verificationChecklist: nextChecklist,
+        verificationStatus: nextStatus,
+        version: { increment: 1 }
+      }
+    });
+
+    if (updateResult.count === 0) {
+      return res.status(409).json({
+        error: 'Trade checklist changed. Refresh and try again.'
+      });
+    }
+
+    const updatedTrade = await prisma.trade.findUnique({
+      where: { id: tradeId }
+    });
+
+    const completedChecks = Object.values(nextChecklist).filter(Boolean).length;
+    await prisma.tradeEvent.create({
+      data: {
+        tradeId,
+        actorId: Number.isInteger(actorId) ? actorId : null,
+        type: 'CHECKLIST',
+        note: `Checklist ${completedChecks}/5`
+      }
+    });
+
+    io.to(`user_${trade.proposerId}`).emit('trade:checklist', {
+      tradeId,
+      verificationChecklist: nextChecklist,
+      verificationStatus: nextStatus,
+      version: updatedTrade?.version ?? trade.version + 1,
+      updatedAt: updatedTrade?.updatedAt ?? new Date().toISOString()
+    });
+    io.to(`user_${trade.receiverId}`).emit('trade:checklist', {
+      tradeId,
+      verificationChecklist: nextChecklist,
+      verificationStatus: nextStatus,
+      version: updatedTrade?.version ?? trade.version + 1,
+      updatedAt: updatedTrade?.updatedAt ?? new Date().toISOString()
+    });
+
+    res.json({
+      tradeId,
+      verificationChecklist: nextChecklist,
+      verificationStatus: nextStatus,
+      version: updatedTrade?.version ?? trade.version + 1
+    });
+  } catch (error) {
+    console.error('Failed to update checklist:', error);
+    res.status(500).json({ error: 'Failed to update checklist' });
+  }
+});
+
+app.get('/swaps/suggestions/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const limit = Math.min(parseInt(req.query.limit as string) || 10, 50);
+
+  try {
+    const targetUserId = parseInt(userId);
+    if (Number.isNaN(targetUserId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+
+    const listings = await prisma.userListing.findMany({
+      where: {
+        isAvailableForTrade: true,
+        collectibleId: { not: null }
+      },
+      select: {
+        id: true,
+        userId: true,
+        collectibleId: true,
+        title: true,
+        imageUrl: true,
+        receiptUrl: true,
+        seriesName: true,
+        referenceValue: true,
+        condition: true,
+        collectible: {
+          select: {
+            name: true,
+            series: { select: { name: true } }
+          }
+        },
+        user: {
+          select: {
+            username: true,
+            name: true,
+            profilePicture: true
+          }
+        }
+      }
+    });
+
+    const wishlists = await prisma.wishlistItem.findMany({
+      select: {
+        userId: true,
+        listing: {
+          select: {
+            collectibleId: true,
+            userId: true
+          }
+        }
+      }
+    });
+
+    const listingsByUser = new Map<number, any[]>();
+    const listingByUserCollectible = new Map<string, any>();
+
+    listings.forEach((listing) => {
+      if (!listing.collectibleId) return;
+      const entry = {
+        id: listing.id,
+        userId: listing.userId,
+        collectibleId: listing.collectibleId,
+        title: listing.title || listing.collectible?.name || 'Listing',
+        imageUrl: listing.imageUrl || listing.receiptUrl || null,
+        seriesName: listing.seriesName || listing.collectible?.series?.name || null,
+        condition: listing.condition || null,
+        referenceValue: listing.referenceValue ?? null,
+        collectibleName: listing.collectible?.name || 'Item',
+        owner: {
+          id: listing.userId,
+          username: listing.user.username || listing.user.name || `user_${listing.userId}`,
+          name: listing.user.name || listing.user.username || 'User',
+          profilePicture: listing.user.profilePicture || null
+        }
+      };
+
+      if (!listingsByUser.has(listing.userId)) {
+        listingsByUser.set(listing.userId, []);
+      }
+      listingsByUser.get(listing.userId)?.push(entry);
+
+      const key = `${listing.userId}:${listing.collectibleId}`;
+      if (!listingByUserCollectible.has(key)) {
+        listingByUserCollectible.set(key, entry);
+      }
+    });
+
+    const wantsByUser = new Map<number, Set<number>>();
+    wishlists.forEach((wishlist) => {
+      const collectibleId = wishlist.listing?.collectibleId;
+      if (!collectibleId) return;
+      if (!wantsByUser.has(wishlist.userId)) {
+        wantsByUser.set(wishlist.userId, new Set());
+      }
+      wantsByUser.get(wishlist.userId)?.add(collectibleId);
+    });
+
+    const userWants = wantsByUser.get(targetUserId) || new Set<number>();
+    const userListings = listingsByUser.get(targetUserId) || [];
+
+    if (userWants.size === 0 || userListings.length === 0) {
+      return res.json({ suggestions: [] });
+    }
+
+    const suggestions: any[] = [];
+    const seen = new Set<string>();
+
+    for (const listingB of listings) {
+      if (listingB.userId === targetUserId) continue;
+      if (!listingB.collectibleId || !userWants.has(listingB.collectibleId)) continue;
+
+      const bWants = wantsByUser.get(listingB.userId);
+      if (!bWants || bWants.size === 0) continue;
+
+      for (const listingC of listings) {
+        if (listingC.userId === targetUserId || listingC.userId === listingB.userId) continue;
+        if (!listingC.collectibleId || !bWants.has(listingC.collectibleId)) continue;
+
+        const cWants = wantsByUser.get(listingC.userId);
+        if (!cWants || cWants.size === 0) continue;
+
+        let listingA = null;
+        for (const desiredCollectibleId of cWants) {
+          const key = `${targetUserId}:${desiredCollectibleId}`;
+          const match = listingByUserCollectible.get(key);
+          if (match) {
+            listingA = match;
+            break;
+          }
+        }
+
+        if (!listingA) continue;
+
+        const suggestionKey = `${targetUserId}:${listingA.id}:${listingB.id}:${listingC.id}`;
+        if (seen.has(suggestionKey)) continue;
+        seen.add(suggestionKey);
+
+        const ownerA = listingA.owner;
+        const ownerB = {
+          id: listingB.userId,
+          username: listingB.user.username || listingB.user.name || `user_${listingB.userId}`,
+          name: listingB.user.name || listingB.user.username || 'User',
+          profilePicture: listingB.user.profilePicture || null
+        };
+        const ownerC = {
+          id: listingC.userId,
+          username: listingC.user.username || listingC.user.name || `user_${listingC.userId}`,
+          name: listingC.user.name || listingC.user.username || 'User',
+          profilePicture: listingC.user.profilePicture || null
+        };
+
+        const listingBEntry = {
+          id: listingB.id,
+          userId: listingB.userId,
+          collectibleId: listingB.collectibleId,
+          title: listingB.title || listingB.collectible?.name || 'Listing',
+          imageUrl: listingB.imageUrl || listingB.receiptUrl || null,
+          seriesName: listingB.seriesName || listingB.collectible?.series?.name || null,
+          condition: listingB.condition || null,
+          referenceValue: listingB.referenceValue ?? null,
+          collectibleName: listingB.collectible?.name || 'Item',
+          owner: ownerB
+        };
+
+        const listingCEntry = {
+          id: listingC.id,
+          userId: listingC.userId,
+          collectibleId: listingC.collectibleId,
+          title: listingC.title || listingC.collectible?.name || 'Listing',
+          imageUrl: listingC.imageUrl || listingC.receiptUrl || null,
+          seriesName: listingC.seriesName || listingC.collectible?.series?.name || null,
+          condition: listingC.condition || null,
+          referenceValue: listingC.referenceValue ?? null,
+          collectibleName: listingC.collectible?.name || 'Item',
+          owner: ownerC
+        };
+
+        const legA = {
+          fromUser: ownerB,
+          toUser: ownerA,
+          listing: listingBEntry
+        };
+
+        const legB = {
+          fromUser: ownerC,
+          toUser: ownerB,
+          listing: listingCEntry
+        };
+
+        const legC = {
+          fromUser: ownerA,
+          toUser: ownerC,
+          listing: listingA
+        };
+
+        suggestions.push({
+          key: suggestionKey,
+          legs: [legA, legB, legC],
+          rationale: [
+            `${legA.fromUser.username} has ${legA.listing.collectibleName}`,
+            `${legB.fromUser.username} has ${legB.listing.collectibleName}`,
+            `${legC.fromUser.username} has ${legC.listing.collectibleName}`
+          ]
+        });
+
+        if (suggestions.length >= limit) break;
+      }
+
+      if (suggestions.length >= limit) break;
+    }
+
+    res.json({ suggestions });
+  } catch (error) {
+    console.error('Failed to compute swap suggestions:', error);
+    res.status(500).json({ error: 'Failed to compute swap suggestions' });
   }
 });
 
@@ -2017,12 +2469,8 @@ app.get('/listings/marketplace', async (req, res) => {
         user: {
           select: {
             id: true,
-            publicUser: { 
-              select: { 
-                name: true, 
-                profilePicture: true 
-              } 
-            }
+            name: true,
+            profilePicture: true
           }
         },
         collectible: {
@@ -2039,8 +2487,8 @@ app.get('/listings/marketplace', async (req, res) => {
       ...listing,
       user: {
         id: listing.user.id,
-        name: listing.user.publicUser?.name || 'User',
-        profilePicture: listing.user.publicUser?.profilePicture
+        name: listing.user.name || 'User',
+        profilePicture: listing.user.profilePicture
       }
     }));
 

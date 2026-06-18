@@ -40,15 +40,51 @@ export class MessagingService {
   }
 
   // Socket methods
+  joinUserRoom(userId: number) {
+    this.socket.emit('join_user', userId);
+  }
+
   joinConversation(conversationId: number) {
     this.socket.emit('join_conversation', conversationId);
   }
 
   onNewMessage(): Observable<ChatMessage> {
     return new Observable(observer => {
-      this.socket.on('new_message', (message: ChatMessage) => {
+      const handler = (message: ChatMessage) => {
         observer.next(message);
-      });
+      };
+      this.socket.on('new_message', handler);
+      return () => this.socket.off('new_message', handler);
+    });
+  }
+
+  onTradeCreated(): Observable<{ tradeId: number; status: string; version: number }> {
+    return new Observable(observer => {
+      const handler = (payload: { tradeId: number; status: string; version: number }) => {
+        observer.next(payload);
+      };
+      this.socket.on('trade:created', handler);
+      return () => this.socket.off('trade:created', handler);
+    });
+  }
+
+  onTradeStatus(): Observable<{ tradeId: number; status: string; version: number; updatedAt?: string }> {
+    return new Observable(observer => {
+      const handler = (payload: { tradeId: number; status: string; version: number; updatedAt?: string }) => {
+        observer.next(payload);
+      };
+      this.socket.on('trade:status', handler);
+      return () => this.socket.off('trade:status', handler);
+    });
+  }
+
+  onTradeChecklist(): Observable<{ tradeId: number; verificationChecklist: Record<string, boolean>; verificationStatus: string; version: number; updatedAt?: string }> {
+    return new Observable(observer => {
+      const handler = (payload: { tradeId: number; verificationChecklist: Record<string, boolean>; verificationStatus: string; version: number; updatedAt?: string }) => {
+        observer.next(payload);
+      };
+      this.socket.on('trade:checklist', handler);
+      return () => this.socket.off('trade:checklist', handler);
     });
   }
 

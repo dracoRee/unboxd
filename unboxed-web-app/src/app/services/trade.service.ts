@@ -18,6 +18,26 @@ export interface TradeFilters {
   maxValue?: number;
 }
 
+export interface SwapSuggestion {
+  key: string;
+  legs: Array<{
+    fromUser: { id: number; username: string; name: string; profilePicture: string | null };
+    toUser: { id: number; username: string; name: string; profilePicture: string | null };
+    listing: {
+      id: number;
+      userId: number;
+      collectibleId: number;
+      title: string;
+      imageUrl: string | null;
+      seriesName: string | null;
+      condition: string | null;
+      referenceValue: number | null;
+      collectibleName: string;
+    };
+  }>;
+  rationale: string[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -377,6 +397,28 @@ export class TradeService {
 
   updateTradeStatus(tradeId: number, status: string): Observable<any> {
     return this.http.patch(`${this.apiUrl}/trades/${tradeId}`, { status });
+  }
+
+  updateTradeStatusWithGuard(tradeId: number, status: string, expectedStatus?: string, version?: number): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/trades/${tradeId}`, {
+      status,
+      expectedStatus,
+      version
+    });
+  }
+
+  updateTradeChecklist(tradeId: number, checklist: Record<string, boolean>, verificationStatus: string, version?: number): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/trades/${tradeId}/checklist`, {
+      checklist,
+      verificationStatus,
+      version
+    });
+  }
+
+  getSwapSuggestions(userId: number): Observable<SwapSuggestion[]> {
+    return this.http.get<{ suggestions: SwapSuggestion[] }>(`${this.apiUrl}/swaps/suggestions/${userId}`).pipe(
+      map(response => response.suggestions || [])
+    );
   }
 
   // Wishlist

@@ -39,6 +39,7 @@ model User {
   vouchesGiven      Vouch[]           @relation("VouchesGiven")
   reportsMade       Report[]          @relation("ReportsMade")
   reportsReceived   Report[]          @relation("ReportsReceived")
+  tradeEvents       TradeEvent[]
 }
 
 model PublicUser {
@@ -133,9 +134,12 @@ model Trade {
   proposerId    Int
   receiverId    Int
   targetItemId  Int
-  status        String             @default("PENDING")
+  status        TradeStatus        @default(PENDING)
   cashAmount    Float              @default(0)
   buyerPaysCash Boolean            @default(true)
+  verificationStatus   String      @default("not_started")
+  verificationChecklist Json?
+  version       Int                @default(0)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
   messages      Message[]
@@ -144,6 +148,24 @@ model Trade {
   targetItem    Collectible        @relation(fields: [targetItemId], references: [id])
   offeredItems  TradeOfferedItem[]
   ratings       UserRating[]
+  events        TradeEvent[]
+}
+
+model TradeEvent {
+  id         Int          @id @default(autoincrement())
+  tradeId    Int
+  actorId    Int?
+  type       String
+  fromStatus TradeStatus?
+  toStatus   TradeStatus?
+  note       String?
+  createdAt  DateTime     @default(now())
+
+  trade Trade @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([tradeId])
+  @@index([actorId])
 }
 
 model TradeOfferedItem {
@@ -212,6 +234,16 @@ enum ListingCondition {
   LIGHTLY_USED
   WELL_USED
   HEAVILY_USED
+}
+
+enum TradeStatus {
+  PENDING
+  ACCEPTED
+  IN_TRANSIT
+  COMPLETED
+  DECLINED
+  CANCELLED
+  EXPIRED
 }
 
 enum VouchType {
