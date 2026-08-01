@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { prisma } from './lib/prisma.js';
 import * as argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
@@ -51,6 +52,35 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Applies to every route; login gets a stricter limiter on top of this (see loginLimiter).
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please try again later.' }
+});
+app.use(generalLimiter);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: 'Too many attempts. Please try again in 15 minutes.' }
+});
+
+// forgot-password always responds 200 (to avoid leaking which emails exist),
+// so skipSuccessfulRequests would never count a request — needs its own limiter.
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again in 15 minutes.' }
+});
 
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -182,7 +212,7 @@ const transporter = nodemailer.createTransport({
 });
 
 // Register
-app.post('/auth/register', async (req, res) => {
+app.post('/auth/register', authLimiter, async (req, res) => {
   const { email, password, name, username } = req.body;
   
   // Add validation
@@ -305,7 +335,7 @@ app.post('/auth/register', async (req, res) => {
 });
 
 // Login
-app.post('/auth/login', async (req, res) => {
+app.post('/auth/login', authLimiter, async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await prisma.user.findUnique({ 
@@ -329,7 +359,7 @@ app.post('/auth/login', async (req, res) => {
 });
 
 // Forgot Password
-app.post('/auth/forgot-password', async (req, res) => {
+app.post('/auth/forgot-password', forgotPasswordLimiter, async (req, res) => {
   const { email } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
@@ -373,7 +403,7 @@ app.post('/auth/forgot-password', async (req, res) => {
 });
 
 // Reset Password
-app.post('/auth/reset-password', async (req, res) => {
+app.post('/auth/reset-password', authLimiter, async (req, res) => {
   const { token, newPassword } = req.body;
   try {
     const user = await prisma.user.findFirst({
