@@ -33,7 +33,7 @@ export interface Trade {
   // Cash payment fields
   cashAmount: number;
   buyerPaysCash: boolean;
-  // User-Led Verification Fields
+  // User-Led Verification Fields (resolved to the viewer's own side — see resolveMyChecklist)
   verificationStatus: VerificationStatus;
   verificationChecklist: VerificationChecklist;
   // Dual-party completion confirmation
@@ -178,8 +178,10 @@ export class TradesComponent implements OnInit, OnDestroy {
       this.messagingService.onTradeChecklist().subscribe(payload => {
         this.applyTradeChecklistUpdate(
           payload.tradeId,
-          payload.verificationChecklist,
-          payload.verificationStatus,
+          payload.proposerChecklist,
+          payload.receiverChecklist,
+          payload.proposerVerificationStatus,
+          payload.receiverVerificationStatus,
           payload.version
         );
       })
@@ -212,17 +214,25 @@ export class TradesComponent implements OnInit, OnDestroy {
     };
   }
 
-  private applyTradeChecklistUpdate(tradeId: number, checklist: Record<string, boolean>, status: string, version: number) {
+  private applyTradeChecklistUpdate(
+    tradeId: number,
+    proposerChecklist: Record<string, boolean>,
+    receiverChecklist: Record<string, boolean>,
+    proposerVerificationStatus: string,
+    receiverVerificationStatus: string,
+    version: number
+  ) {
     const index = this.trades.findIndex(trade => trade.id === tradeId);
     if (index === -1) {
       this.loadTrades();
       return;
     }
     const trade = this.trades[index];
+    const isProposer = this.userId === trade.proposerId;
     this.trades[index] = {
       ...trade,
-      verificationChecklist: { ...trade.verificationChecklist, ...checklist } as VerificationChecklist,
-      verificationStatus: status as VerificationStatus,
+      verificationChecklist: (isProposer ? proposerChecklist : receiverChecklist) as unknown as VerificationChecklist,
+      verificationStatus: (isProposer ? proposerVerificationStatus : receiverVerificationStatus) as VerificationStatus,
       version
     };
   }
@@ -308,25 +318,33 @@ export class TradesComponent implements OnInit, OnDestroy {
     });
   }
 
-  enrichTradeData(trade: any): Trade {
-    const isOpen = this.verificationOpenByTradeId.get(trade.id) ?? false;
-    const rawUsername = trade?.counterparty?.username ?? trade?.counterparty?.name ?? '';
-    const normalizedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
-    const resolvedUsername = normalizedUsername || `User_${trade?.counterparty?.id ?? 'Unknown'}`;
-    const normalizedVerificationStatus = typeof trade?.verificationStatus === 'string'
-      ? trade.verificationStatus.toLowerCase()
-      : 'not_started';
+  private resolveMyChecklist(trade: any): { checklist: VerificationChecklist; status: VerificationStatus } {
+    const isProposer = this.userId === trade.proposerId;
+    const rawChecklist = isProposer ? trade.proposerChecklist : trade.receiverChecklist;
+    const rawStatus = isProposer ? trade.proposerVerificationStatus : trade.receiverVerificationStatus;
     return {
-      ...trade,
-      version: Number.isInteger(trade.version) ? trade.version : 0,
-      verificationStatus: normalizedVerificationStatus as VerificationStatus,
-      verificationChecklist: trade.verificationChecklist || {
+      checklist: rawChecklist || {
         reviewsChecked: false,
         meetupArranged: false,
         itemInspected: false,
         proofRequested: false,
         authenticityVerified: false
       },
+      status: (typeof rawStatus === 'string' ? rawStatus.toLowerCase() : 'not_started') as VerificationStatus
+    };
+  }
+
+  enrichTradeData(trade: any): Trade {
+    const isOpen = this.verificationOpenByTradeId.get(trade.id) ?? false;
+    const rawUsername = trade?.counterparty?.username ?? trade?.counterparty?.name ?? '';
+    const normalizedUsername = typeof rawUsername === 'string' ? rawUsername.trim() : '';
+    const resolvedUsername = normalizedUsername || `User_${trade?.counterparty?.id ?? 'Unknown'}`;
+    const myChecklist = this.resolveMyChecklist(trade);
+    return {
+      ...trade,
+      version: Number.isInteger(trade.version) ? trade.version : 0,
+      verificationStatus: myChecklist.status,
+      verificationChecklist: myChecklist.checklist,
       proposerConfirmedAt: trade.proposerConfirmedAt ?? null,
       receiverConfirmedAt: trade.receiverConfirmedAt ?? null,
       showVerification: isOpen,
@@ -466,15 +484,17 @@ export class TradesComponent implements OnInit, OnDestroy {
       trade.id,
       trade.verificationChecklist as unknown as Record<string, boolean>,
       trade.verificationStatus,
-      trade.version
+      trade.version,
+      this.userId
     ).subscribe({
       next: (updated) => {
         // Write version back in-place — don't spread a new object
         const index = this.trades.findIndex(t => t.id === trade.id);
         if (index !== -1 && updated?.version !== undefined) {
+          const isProposer = this.userId === this.trades[index].proposerId;
           this.trades[index].version = updated.version;
-          this.trades[index].verificationChecklist = updated.verificationChecklist ?? this.trades[index].verificationChecklist;
-          this.trades[index].verificationStatus = updated.verificationStatus ?? this.trades[index].verificationStatus;
+          this.trades[index].verificationChecklist = (isProposer ? updated.proposerChecklist : updated.receiverChecklist) ?? this.trades[index].verificationChecklist;
+          this.trades[index].verificationStatus = (isProposer ? updated.proposerVerificationStatus : updated.receiverVerificationStatus) ?? this.trades[index].verificationStatus;
         } else {
           this.loadTrades();
         }

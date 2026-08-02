@@ -78,9 +78,9 @@ export class MessagingService {
     });
   }
 
-  onTradeChecklist(): Observable<{ tradeId: number; verificationChecklist: Record<string, boolean>; verificationStatus: string; version: number; updatedAt?: string }> {
+  onTradeChecklist(): Observable<{ tradeId: number; proposerChecklist: Record<string, boolean>; receiverChecklist: Record<string, boolean>; proposerVerificationStatus: string; receiverVerificationStatus: string; version: number; updatedAt?: string }> {
     return new Observable(observer => {
-      const handler = (payload: { tradeId: number; verificationChecklist: Record<string, boolean>; verificationStatus: string; version: number; updatedAt?: string }) => {
+      const handler = (payload: { tradeId: number; proposerChecklist: Record<string, boolean>; receiverChecklist: Record<string, boolean>; proposerVerificationStatus: string; receiverVerificationStatus: string; version: number; updatedAt?: string }) => {
         observer.next(payload);
       };
       this.socket.on('trade:checklist', handler);

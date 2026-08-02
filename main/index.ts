@@ -946,8 +946,10 @@ app.post('/trades', async (req, res) => {
         status: 'PENDING',
         cashAmount: cashTopUp ? parseFloat(cashTopUp) : 0,
         buyerPaysCash: buyerPaysCash !== undefined ? buyerPaysCash : true,
-        verificationStatus: 'not_started',
-        verificationChecklist: DEFAULT_TRADE_CHECKLIST,
+        proposerVerificationStatus: 'not_started',
+        proposerChecklist: DEFAULT_TRADE_CHECKLIST,
+        receiverVerificationStatus: 'not_started',
+        receiverChecklist: DEFAULT_TRADE_CHECKLIST,
         offeredItems: {
           create: offeredIds.map((id: number) => ({ collectibleId: id }))
         }
@@ -1253,6 +1255,11 @@ app.patch('/trades/:id/checklist', async (req, res) => {
 
   try {
     const tradeId = parseInt(id);
+
+    if (!Number.isInteger(actorId)) {
+      return res.status(400).json({ error: 'actorId is required' });
+    }
+
     const trade = await prisma.trade.findUnique({
       where: { id: tradeId },
       select: { id: true, proposerId: true, receiverId: true, version: true }
@@ -1261,6 +1268,12 @@ app.patch('/trades/:id/checklist', async (req, res) => {
     if (!trade) {
       return res.status(404).json({ error: 'Trade not found' });
     }
+
+    if (actorId !== trade.proposerId && actorId !== trade.receiverId) {
+      return res.status(403).json({ error: 'Not authorized to update this checklist' });
+    }
+
+    const isProposer = actorId === trade.proposerId;
 
     const incomingChecklist = (checklist && typeof checklist === 'object') ? checklist : {};
     const nextChecklist = {
@@ -1284,11 +1297,17 @@ app.patch('/trades/:id/checklist', async (req, res) => {
         id: tradeId,
         version: guardVersion
       },
-      data: {
-        verificationChecklist: nextChecklist,
-        verificationStatus: nextStatus,
-        version: { increment: 1 }
-      }
+      data: isProposer
+        ? {
+            proposerChecklist: nextChecklist,
+            proposerVerificationStatus: nextStatus,
+            version: { increment: 1 }
+          }
+        : {
+            receiverChecklist: nextChecklist,
+            receiverVerificationStatus: nextStatus,
+            version: { increment: 1 }
+          }
     });
 
     if (updateResult.count === 0) {
@@ -1305,33 +1324,26 @@ app.patch('/trades/:id/checklist', async (req, res) => {
     await prisma.tradeEvent.create({
       data: {
         tradeId,
-        actorId: Number.isInteger(actorId) ? actorId : null,
+        actorId,
         type: 'CHECKLIST',
-        note: `Checklist ${completedChecks}/5`
+        note: `${isProposer ? 'Proposer' : 'Receiver'} checklist ${completedChecks}/5`
       }
     });
 
-    io.to(`user_${trade.proposerId}`).emit('trade:checklist', {
+    const payload = {
       tradeId,
-      verificationChecklist: nextChecklist,
-      verificationStatus: nextStatus,
+      proposerChecklist: updatedTrade?.proposerChecklist ?? null,
+      receiverChecklist: updatedTrade?.receiverChecklist ?? null,
+      proposerVerificationStatus: updatedTrade?.proposerVerificationStatus ?? 'not_started',
+      receiverVerificationStatus: updatedTrade?.receiverVerificationStatus ?? 'not_started',
       version: updatedTrade?.version ?? trade.version + 1,
       updatedAt: updatedTrade?.updatedAt ?? new Date().toISOString()
-    });
-    io.to(`user_${trade.receiverId}`).emit('trade:checklist', {
-      tradeId,
-      verificationChecklist: nextChecklist,
-      verificationStatus: nextStatus,
-      version: updatedTrade?.version ?? trade.version + 1,
-      updatedAt: updatedTrade?.updatedAt ?? new Date().toISOString()
-    });
+    };
 
-    res.json({
-      tradeId,
-      verificationChecklist: nextChecklist,
-      verificationStatus: nextStatus,
-      version: updatedTrade?.version ?? trade.version + 1
-    });
+    io.to(`user_${trade.proposerId}`).emit('trade:checklist', payload);
+    io.to(`user_${trade.receiverId}`).emit('trade:checklist', payload);
+
+    res.json(payload);
   } catch (error) {
     console.error('Failed to update checklist:', error);
     res.status(500).json({ error: 'Failed to update checklist' });

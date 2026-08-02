@@ -407,11 +407,12 @@ export class TradeService {
     });
   }
 
-  updateTradeChecklist(tradeId: number, checklist: Record<string, boolean>, verificationStatus: string, version?: number): Observable<any> {
+  updateTradeChecklist(tradeId: number, checklist: Record<string, boolean>, verificationStatus: string, version?: number, actorId?: number): Observable<any> {
     return this.http.patch(`${this.apiUrl}/trades/${tradeId}/checklist`, {
       checklist,
       verificationStatus,
-      version
+      version,
+      actorId
     });
   }
 

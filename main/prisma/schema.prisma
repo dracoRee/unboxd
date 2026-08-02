@@ -137,8 +137,10 @@ model Trade {
   status        TradeStatus        @default(PENDING)
   cashAmount    Float              @default(0)
   buyerPaysCash Boolean            @default(true)
-  verificationStatus   String      @default("not_started")
-  verificationChecklist Json?
+  proposerVerificationStatus String @default("not_started")
+  proposerChecklist          Json?
+  receiverVerificationStatus String @default("not_started")
+  receiverChecklist          Json?
   proposerConfirmedAt DateTime?
   receiverConfirmedAt DateTime?
   version       Int                @default(0)
