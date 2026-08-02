@@ -73,7 +73,6 @@ export class SupabaseService {
           username,
           name
         )
-        )
       `)
       .eq('isAvailableForTrade', true);
 
