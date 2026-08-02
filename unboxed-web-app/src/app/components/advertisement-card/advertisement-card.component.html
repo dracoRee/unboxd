@@ -39,17 +39,17 @@
 
       <!-- Navigation Controls (show if more than 1 slide) -->
       @if (imageSlides.length > 1) {
-        <div class="absolute inset-0 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10 px-2">
-          <button 
+        <div class="absolute inset-0 flex items-center justify-between opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10 px-2">
+          <button
             (click)="previousSlide(); $event.stopPropagation()"
-            class="w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all">
+            class="w-11 h-11 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <button 
+          <button
             (click)="nextSlide(); $event.stopPropagation()"
-            class="w-8 h-8 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all">
+            class="w-11 h-11 bg-white/80 hover:bg-white rounded-full flex items-center justify-center transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
             </svg>
@@ -57,13 +57,15 @@
         </div>
 
         <!-- Image Indicators -->
-        <div class="absolute bottom-3 left-1/2 transform -translate-x-1/2 z-10 flex gap-1.5">
+        <div class="absolute bottom-0 left-1/2 transform -translate-x-1/2 z-10 flex">
           @for (slide of imageSlides; track $index) {
-            <button 
+            <button
               (click)="goToSlide($index); $event.stopPropagation()"
-              [class.bg-white]="$index === currentSlideIndex"
-              [class.bg-gray-300]="$index !== currentSlideIndex"
-              class="w-1.5 h-1.5 rounded-full transition-all hover:bg-white">
+              class="w-8 h-8 flex items-center justify-center">
+              <span
+                [class.bg-white]="$index === currentSlideIndex"
+                [class.bg-gray-300]="$index !== currentSlideIndex"
+                class="w-1.5 h-1.5 rounded-full transition-all"></span>
             </button>
           }
         </div>

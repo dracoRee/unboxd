@@ -36,6 +36,9 @@ export interface Trade {
   // User-Led Verification Fields
   verificationStatus: VerificationStatus;
   verificationChecklist: VerificationChecklist;
+  // Dual-party completion confirmation
+  proposerConfirmedAt: string | null;
+  receiverConfirmedAt: string | null;
   counterparty: {
     id: number;
     username: string;
@@ -181,6 +184,18 @@ export class TradesComponent implements OnInit, OnDestroy {
         );
       })
     );
+
+    this.subscriptions.add(
+      this.messagingService.onTradeConfirmation().subscribe(payload => {
+        this.applyTradeConfirmationUpdate(
+          payload.tradeId,
+          payload.proposerConfirmedAt,
+          payload.receiverConfirmedAt,
+          payload.status,
+          payload.version
+        );
+      })
+    );
   }
 
   private applyTradeStatusUpdate(tradeId: number, status: string, version: number) {
@@ -208,6 +223,28 @@ export class TradesComponent implements OnInit, OnDestroy {
       ...trade,
       verificationChecklist: { ...trade.verificationChecklist, ...checklist } as VerificationChecklist,
       verificationStatus: status as VerificationStatus,
+      version
+    };
+  }
+
+  private applyTradeConfirmationUpdate(
+    tradeId: number,
+    proposerConfirmedAt: string | null,
+    receiverConfirmedAt: string | null,
+    status: string,
+    version: number
+  ) {
+    const index = this.trades.findIndex(trade => trade.id === tradeId);
+    if (index === -1) {
+      this.loadTrades();
+      return;
+    }
+    const trade = this.trades[index];
+    this.trades[index] = {
+      ...trade,
+      proposerConfirmedAt,
+      receiverConfirmedAt,
+      status,
       version
     };
   }
@@ -290,6 +327,8 @@ export class TradesComponent implements OnInit, OnDestroy {
         proofRequested: false,
         authenticityVerified: false
       },
+      proposerConfirmedAt: trade.proposerConfirmedAt ?? null,
+      receiverConfirmedAt: trade.receiverConfirmedAt ?? null,
       showVerification: isOpen,
       counterparty: trade.counterparty ? {
         id: trade.counterparty.id,
@@ -330,6 +369,35 @@ export class TradesComponent implements OnInit, OnDestroy {
         } else {
           this.loadTrades();
         }
+      },
+      error: () => {
+        this.loadTrades();
+      }
+    });
+  }
+
+  hasUserConfirmed(trade: Trade): boolean {
+    if (this.userId === trade.proposerId) return !!trade.proposerConfirmedAt;
+    if (this.userId === trade.receiverId) return !!trade.receiverConfirmedAt;
+    return false;
+  }
+
+  hasCounterpartyConfirmed(trade: Trade): boolean {
+    if (this.userId === trade.proposerId) return !!trade.receiverConfirmedAt;
+    if (this.userId === trade.receiverId) return !!trade.proposerConfirmedAt;
+    return false;
+  }
+
+  confirmCompletion(trade: Trade) {
+    this.tradeService.confirmTradeCompletion(trade.id, trade.version, this.userId).subscribe({
+      next: (updated) => {
+        this.applyTradeConfirmationUpdate(
+          trade.id,
+          updated?.proposerConfirmedAt ?? trade.proposerConfirmedAt,
+          updated?.receiverConfirmedAt ?? trade.receiverConfirmedAt,
+          updated?.status ?? trade.status,
+          updated?.version ?? trade.version + 1
+        );
       },
       error: () => {
         this.loadTrades();

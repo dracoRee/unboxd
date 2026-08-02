@@ -88,6 +88,16 @@ export class MessagingService {
     });
   }
 
+  onTradeConfirmation(): Observable<{ tradeId: number; proposerConfirmedAt: string | null; receiverConfirmedAt: string | null; status: string; version: number; updatedAt?: string }> {
+    return new Observable(observer => {
+      const handler = (payload: { tradeId: number; proposerConfirmedAt: string | null; receiverConfirmedAt: string | null; status: string; version: number; updatedAt?: string }) => {
+        observer.next(payload);
+      };
+      this.socket.on('trade:confirmation', handler);
+      return () => this.socket.off('trade:confirmation', handler);
+    });
+  }
+
   // API methods
   syncUser(email: string, name?: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/users/sync`, { email, name });

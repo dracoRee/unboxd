@@ -139,6 +139,8 @@ model Trade {
   buyerPaysCash Boolean            @default(true)
   verificationStatus   String      @default("not_started")
   verificationChecklist Json?
+  proposerConfirmedAt DateTime?
+  receiverConfirmedAt DateTime?
   version       Int                @default(0)
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt

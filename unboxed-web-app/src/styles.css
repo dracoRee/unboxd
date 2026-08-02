@@ -12,8 +12,9 @@
   --steam-dark-bg: #1b2838;
   --steam-darker-bg: #171a21;
   --steam-light-bg: #2a475e;
-  --steam-accent: #67852c;
-  --steam-accent-hover: #7fa03f;
+  /* Brand accent — kept in sync with tailwind.config.js `accent` scale (accent-600/700) */
+  --brand-accent: #4f46e5;
+  --brand-accent-hover: #4338ca;
   
   /* Text Colors */
   --text-primary: #ffffff;
@@ -99,7 +100,7 @@ a {
 }
 
 a:hover {
-  color: var(--steam-accent);
+  color: var(--brand-accent);
 }
 
 /* Scrollbar Styling */
@@ -118,7 +119,7 @@ a:hover {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--steam-accent);
+  background: var(--brand-accent);
 }
 
 /* Utility Classes */
@@ -173,12 +174,12 @@ button {
 }
 
 .btn-primary {
-  background: var(--steam-accent);
+  background: var(--brand-accent);
   color: var(--text-primary);
 }
 
 .btn-primary:hover {
-  background: var(--steam-accent-hover);
+  background: var(--brand-accent-hover);
   transform: translateY(-1px);
 }
 
@@ -195,7 +196,7 @@ input, select, textarea {
 
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--steam-accent);
+  border-color: var(--brand-accent);
 }
 
 input::placeholder {

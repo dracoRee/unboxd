@@ -1178,6 +1178,12 @@ app.patch('/trades/:id', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to update this trade' });
     }
 
+    if (nextStatus === 'COMPLETED') {
+      return res.status(400).json({
+        error: 'Trades can only be completed once both parties confirm. Use PATCH /trades/:id/confirm.'
+      });
+    }
+
     if (!canTransitionStatus(trade.status, nextStatus)) {
       return res.status(400).json({
         error: `Invalid status transition: ${trade.status} -> ${nextStatus}`
@@ -1329,6 +1335,112 @@ app.patch('/trades/:id/checklist', async (req, res) => {
   } catch (error) {
     console.error('Failed to update checklist:', error);
     res.status(500).json({ error: 'Failed to update checklist' });
+  }
+});
+
+app.patch('/trades/:id/confirm', async (req, res) => {
+  const { id } = req.params;
+  const { actorId, version } = req.body;
+
+  try {
+    const tradeId = parseInt(id);
+
+    if (!Number.isInteger(actorId)) {
+      return res.status(400).json({ error: 'actorId is required' });
+    }
+
+    const trade = await prisma.trade.findUnique({
+      where: { id: tradeId }
+    });
+
+    if (!trade) {
+      return res.status(404).json({ error: 'Trade not found' });
+    }
+
+    if (actorId !== trade.proposerId && actorId !== trade.receiverId) {
+      return res.status(403).json({ error: 'Not authorized to confirm this trade' });
+    }
+
+    if (trade.status !== 'IN_TRANSIT') {
+      return res.status(400).json({ error: 'Trade must be in transit before it can be confirmed' });
+    }
+
+    const guardVersion = Number.isInteger(version) ? version : trade.version;
+    const isProposer = actorId === trade.proposerId;
+
+    const confirmResult = await prisma.trade.updateMany({
+      where: {
+        id: tradeId,
+        version: guardVersion
+      },
+      data: isProposer
+        ? { proposerConfirmedAt: new Date(), version: { increment: 1 } }
+        : { receiverConfirmedAt: new Date(), version: { increment: 1 } }
+    });
+
+    if (confirmResult.count === 0) {
+      return res.status(409).json({
+        error: 'Trade changed. Refresh and try again.'
+      });
+    }
+
+    let updatedTrade = await prisma.trade.findUnique({
+      where: { id: tradeId }
+    });
+
+    await prisma.tradeEvent.create({
+      data: {
+        tradeId,
+        actorId,
+        type: 'CONFIRMATION',
+        note: isProposer ? 'Proposer confirmed receipt' : 'Receiver confirmed receipt'
+      }
+    });
+
+    if (updatedTrade?.proposerConfirmedAt && updatedTrade?.receiverConfirmedAt) {
+      const completeResult = await prisma.trade.updateMany({
+        where: {
+          id: tradeId,
+          version: updatedTrade.version
+        },
+        data: {
+          status: 'COMPLETED',
+          version: { increment: 1 }
+        }
+      });
+
+      if (completeResult.count > 0) {
+        updatedTrade = await prisma.trade.findUnique({ where: { id: tradeId } });
+
+        await prisma.tradeEvent.create({
+          data: {
+            tradeId,
+            actorId: null,
+            type: 'STATUS',
+            fromStatus: 'IN_TRANSIT',
+            toStatus: 'COMPLETED',
+            note: 'Both parties confirmed receipt'
+          }
+        });
+      }
+    }
+
+    const payload = {
+      tradeId,
+      proposerConfirmedAt: updatedTrade?.proposerConfirmedAt ?? null,
+      receiverConfirmedAt: updatedTrade?.receiverConfirmedAt ?? null,
+      status: updatedTrade?.status ?? trade.status,
+      version: updatedTrade?.version ?? guardVersion + 1,
+      updatedAt: updatedTrade?.updatedAt ?? new Date().toISOString()
+    };
+
+    io.to(`user_${trade.proposerId}`).emit('trade:confirmation', payload);
+    io.to(`user_${trade.receiverId}`).emit('trade:confirmation', payload);
+
+    res.json(updatedTrade ?? payload);
+  } catch (error) {
+    console.error('Failed to confirm trade:', error);
+    res.status(500).json({ error: 'Failed to confirm trade' });
   }
 });
 

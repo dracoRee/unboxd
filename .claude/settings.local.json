@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -rEo \"w-\\\\[[0-9]+px\\\\]|width:\\\\s*[0-9]{3,}px|min-width:\\\\s*[0-9]{3,}px\" ./unboxed-web-app/src/app --include=\"*.html\" --include=\"*.css\")",
+      "Bash(netstat -ano)",
+      "Bash(npx ng *)",
+      "Read(//d/Timo-Claude/**)",
+      "Read(//d/Timo-Claude/config/**)",
+      "WebSearch",
+      "Bash(xargs -I{} wc -l {})"
+    ]
+  }
+}

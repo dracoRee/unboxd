@@ -415,6 +415,13 @@ export class TradeService {
     });
   }
 
+  confirmTradeCompletion(tradeId: number, version: number, actorId?: number): Observable<any> {
+    return this.http.patch(`${this.apiUrl}/trades/${tradeId}/confirm`, {
+      actorId,
+      version
+    });
+  }
+
   getSwapSuggestions(userId: number): Observable<SwapSuggestion[]> {
     return this.http.get<{ suggestions: SwapSuggestion[] }>(`${this.apiUrl}/swaps/suggestions/${userId}`).pipe(
       map(response => response.suggestions || [])

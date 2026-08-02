@@ -361,20 +361,31 @@
               </button>
 
               <div class="flex gap-3">
-                <button (click)="openChat(trade.counterparty.id)" 
-                        class="border-2 border-purple-500 text-purple-600 hover:bg-purple-500 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all bg-white shadow-sm hover:shadow-md"
-                        style="border-color: #9333ea !important;">
+                <button (click)="openChat(trade.counterparty.id)"
+                        class="border-2 border-accent-500 text-accent-600 hover:bg-accent-500 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition-all bg-white shadow-sm hover:shadow-md">
                   Chat with {{ activeTab === 'outgoing' ? 'Seller' : 'Buyer' }}
                 </button>
                 @if (activeTab === 'incoming' && trade.status === 'PENDING') {
-                  <button (click)="openTradeConfirmModal(trade, 'ACCEPTED')" 
+                  <button (click)="openTradeConfirmModal(trade, 'ACCEPTED')"
                           class="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-bold hover:bg-green-600 transition-all">
                     Accept
                   </button>
-                  <button (click)="openTradeConfirmModal(trade, 'DECLINED')" 
+                  <button (click)="openTradeConfirmModal(trade, 'DECLINED')"
                           class="px-4 py-2 bg-red-500 text-white rounded-lg text-sm font-bold hover:bg-red-600 transition-all">
                     Decline
                   </button>
+                }
+                @if (trade.status === 'IN_TRANSIT') {
+                  @if (!hasUserConfirmed(trade)) {
+                    <button (click)="confirmCompletion(trade)"
+                            class="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-bold hover:bg-green-600 transition-all">
+                      Confirm Item Received
+                    </button>
+                  } @else if (!hasCounterpartyConfirmed(trade)) {
+                    <span class="px-4 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm font-bold">
+                      Waiting for {{ trade.counterparty.username }} to confirm
+                    </span>
+                  }
                 }
               </div>
             </div>

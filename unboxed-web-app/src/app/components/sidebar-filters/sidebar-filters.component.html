@@ -20,7 +20,7 @@
       </div>
       <div class="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
         @for (series of filteredSeries; track series) {
-          <label class="flex items-center gap-3 cursor-pointer group">
+          <label class="flex items-center gap-3 min-h-11 cursor-pointer group">
             <input 
               type="checkbox" 
               [checked]="selectedSeries.includes(series)"
@@ -82,11 +82,11 @@
   <div>
     <h3 class="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wider">Trade Type</h3>
     <div class="space-y-3">
-      <label class="flex items-center gap-3 cursor-pointer group">
+      <label class="flex items-center gap-3 min-h-11 cursor-pointer group">
         <input type="radio" name="tradeType" class="w-4 h-4 border-gray-300 text-accent-600 focus:ring-accent-500">
         <span class="text-sm text-gray-600 group-hover:text-gray-900">Straight Swap</span>
       </label>
-      <label class="flex items-center gap-3 cursor-pointer group">
+      <label class="flex items-center gap-3 min-h-11 cursor-pointer group">
         <input type="radio" name="tradeType" class="w-4 h-4 border-gray-300 text-accent-600 focus:ring-accent-500">
         <span class="text-sm text-gray-600 group-hover:text-gray-900">Swap + Top-up</span>
       </label>
