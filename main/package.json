@@ -6,7 +6,9 @@
     "dev": "tsx watch index.ts",
     "start": "tsx index.ts",
     "import-collectibles": "tsx import_collectibles.ts",
-    "loadtest:swap": "k6 run loadtest/k6-swap.js"
+    "loadtest:swap": "k6 run loadtest/k6-swap.js",
+    "postinstall": "prisma generate",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
@@ -17,7 +19,8 @@
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "@google/generative-ai": "latest",

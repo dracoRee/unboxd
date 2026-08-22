@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { CategoryTabsComponent } from './category-tabs.component';
 
@@ -8,7 +10,8 @@ describe('CategoryTabsComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [CategoryTabsComponent]
+      imports: [CategoryTabsComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting()]
     })
     .compileComponents();
 

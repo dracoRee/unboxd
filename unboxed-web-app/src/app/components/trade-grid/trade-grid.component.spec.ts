@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { TradeGridComponent } from './trade-grid.component';
 
@@ -8,7 +10,8 @@ describe('TradeGridComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [TradeGridComponent]
+      imports: [TradeGridComponent],
+      providers: [provideHttpClient(), provideHttpClientTesting()]
     })
     .compileComponents();
 
