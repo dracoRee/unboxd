@@ -1,3 +1,5 @@
 .env
 /node_modules
 /generated/prisma
+self-host/volumes/storage/*
+!self-host/volumes/storage/.gitkeep
