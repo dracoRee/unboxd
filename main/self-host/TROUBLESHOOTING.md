@@ -43,6 +43,17 @@ all three proxied locations (`/auth/v1/`, `/rest/v1/`, `/storage/v1/`).
   header the Supabase JS client sends on auth requests. Added to the allowlist
   in `supabase.unboxd.online.conf`.
 
+**Third round, same allowlist, different headers:** the very next real
+browser pass immediately hit two more missing headers —
+`accept-profile` (schema-selection header on `GET`) and `x-retry-count`
+(the client's own retry mechanism). Rather than keep adding headers one
+report at a time, replaced the allowlist with the full known
+postgrest-js/supabase-js header set in one pass:
+`authorization, apikey, content-type, x-client-info, prefer, range,
+range-unit, x-supabase-api-version, accept-profile, content-profile,
+x-retry-count`. If a client library update adds another header later,
+add it here rather than repeating single-header whack-a-mole.
+
 ## Root cause 2: incomplete post-migration checks (name-based, not value-based)
 
 Two separate migration steps used a *column-name* heuristic instead of
