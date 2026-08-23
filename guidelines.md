@@ -104,22 +104,30 @@
 ### Core Models
 | Model | Purpose |
 |-------|---------|
-| `User` | Auth account (email, password, username, rating stats) |
-| `PublicUser` | Public profile (name, bio, profile picture, verification status) |
+| `User` | Private auth account (email, password hash, reset token, username, rating aggregates). Self-relation implements follow graph. |
+| `PublicUser` | Public-safe profile, `id` shared 1:1 with `User` (name, bio, profile picture, verification status, `vouchCount`). Owns `UserListing`s. |
 | `Series` | Collectible series (name, description, total items) |
-| `Collectible` | Individual collectible item within a series |
-| `UserCollectible` | User's personal collection item (owned, with condition/photos) |
-| `UserListing` | Marketplace listing (for-trade item with status, deal methods) |
-| `Trade` | Trade proposal between two users |
-| `TradeOfferedItem` | Items offered in a trade (join table) |
+| `Collectible` | Catalog item within a series. `userId` is optional — a row can also represent a specific user's personal copy, not just a catalog entry. |
+| `UserCollectible` | User's personal collection item (owned, with condition/photos). Duplicates are tracked via `quantity`, not separate rows. |
+| `UserListing` | Marketplace listing (for-trade item with status, deal methods). `collectibleId` is optional — listings without it are invisible to swap matching. |
+| `Trade` | Trade proposal between two users. Carries `version` (optimistic concurrency), `cashAmount`/`buyerPaysCash`, per-side verification checklist (`proposerChecklist`/`receiverChecklist` JSON + status strings), and per-side confirmation timestamps (`proposerConfirmedAt`/`receiverConfirmedAt`) — completion requires both. |
+| `TradeOfferedItem` | Items offered in a trade (join table, one row per item, no quantity) |
+| `TradeEvent` | Append-only audit log of trade status transitions and confirmations (`type`, `fromStatus`/`toStatus`, `actorId`, `note`) |
 | `Message` | Chat message (in conversation or trade context) |
 | `Conversation` | Chat thread between users |
-| `WishlistItem` | User's wishlisted listing |
-| `UserRating` | Post-trade rating (1–5 score + comment) |
+| `WishlistItem` | User's wishlisted listing, unique per `(userId, listingId)` |
+| `UserRating` | Post-trade rating (1–5 score + comment), unique per `(tradeId, raterId)` |
+| `Vouch` | Trust signal on a user or a listing (`type` discriminates target); unique per author+target |
+| `Report` | Flag on a user or listing, with a `status` moderation workflow (no admin UI yet) |
+
+> Full field-by-field detail, ER diagram, and modeling gotchas (e.g. the `Collectible.userId` overload): see `ARCHITECTURE.md` §8. Treat `main/prisma/schema.prisma` as the actual source of truth over this table.
 
 ### Enums
 - `ListingStatus`: AVAILABLE, SOLD
 - `ListingCondition`: BRAND_NEW, LIKE_NEW, LIGHTLY_USED, WELL_USED, HEAVILY_USED
+- `TradeStatus`: PENDING, ACCEPTED, IN_TRANSIT, COMPLETED, DECLINED, CANCELLED, EXPIRED
+- `VouchType`: USER, LISTING
+- `ReportStatus`: PENDING, REVIEWED, RESOLVED, DISMISSED
 
 ---
 
