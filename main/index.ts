@@ -36,19 +36,22 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 
 const FRONTEND_URL = process.env.FRONTEND_URL;
+const ALLOWED_ORIGINS = FRONTEND_URL
+  ? [FRONTEND_URL, FRONTEND_URL.replace('://', '://www.')]
+  : [];
 
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: {
-    origin:FRONTEND_URL, // allow requests from port 4200 to port 3000
+    origin: ALLOWED_ORIGINS, // allow both apex and www frontend origins
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 
 app.use(cors({
-  origin:FRONTEND_URL,
+  origin: ALLOWED_ORIGINS,
   credentials: true
 }));
 app.use(express.json());
