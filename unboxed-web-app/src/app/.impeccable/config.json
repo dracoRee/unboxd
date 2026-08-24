@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "[src]=\"authservice.backenduser()?.profilepicture",
+        "files": [
+          "unboxed-web-app/src/app/pages/settings/settings.component.html"
+        ],
+        "createdAt": "2026-08-24T11:09:43.875Z",
+        "reason": "false positive: img is gated by *ngIf on the same truthy profilePicture value, so it never renders with an empty src"
+      }
+    ]
+  }
+}

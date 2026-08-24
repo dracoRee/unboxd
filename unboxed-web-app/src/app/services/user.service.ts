@@ -64,7 +64,7 @@ export class UserService {
     return this.http.get<UserProfile>(url);
   }
 
-  updateProfile(userId: number, data: { name?: string; bio?: string; profilePicture?: string }): Observable<UserProfile> {
+  updateProfile(userId: number, data: { name?: string; username?: string; bio?: string; profilePicture?: string }): Observable<UserProfile> {
     return this.http.patch<UserProfile>(`${this.apiUrl}/users/profile`, { userId, ...data });
   }
 
